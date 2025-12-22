@@ -1,0 +1,5 @@
+# Esta pasta contém validadores para os dados de entrada
+# Exemplo: userValidator.js, productValidator.js, etc.
+# 
+# Use bibliotecas como express-validator ou joi para validação
+

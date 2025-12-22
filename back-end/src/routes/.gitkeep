@@ -1,0 +1,5 @@
+# Esta pasta contém as rotas da API
+# Exemplo: user.routes.js, product.routes.js, order.routes.js, etc.
+# 
+# Cada arquivo de rota deve exportar um router do Express
+
