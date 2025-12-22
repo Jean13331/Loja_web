@@ -36,9 +36,9 @@ CREATE TABLE IF NOT EXISTS usuario (
     idusuario SERIAL NOT NULL,
     nome VARCHAR(45) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
-    numero_telefone VARCHAR(15) NOT NULL,
+    numero_telefone VARCHAR(32) NOT NULL,
     senha VARCHAR(100) NOT NULL,
-    cpf VARCHAR(20) NOT NULL UNIQUE,
+    cpf VARCHAR(32) NOT NULL UNIQUE,
     nascimento DATE NOT NULL,
     admin SMALLINT NOT NULL DEFAULT 0,
     PRIMARY KEY (idusuario)

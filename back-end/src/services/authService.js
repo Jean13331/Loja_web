@@ -18,6 +18,15 @@ const authService = {
   },
 
   /**
+   * Gera hash MD5 de um valor (CPF, telefone, etc)
+   */
+  hashValue(value) {
+    // Remove caracteres não numéricos antes de fazer hash
+    const cleanValue = value.replace(/\D/g, '');
+    return crypto.createHash('md5').update(cleanValue).digest('hex');
+  },
+
+  /**
    * Registra um novo usuário
    */
   async register(userData) {
@@ -27,8 +36,12 @@ const authService = {
       throw new Error('Email já cadastrado');
     }
 
-    // Verificar se CPF já existe
-    const existingCPF = await usuarioModel.findByCPF(userData.cpf);
+    // Hash do CPF e telefone antes de verificar/buscar
+    const hashedCPF = this.hashValue(userData.cpf);
+    const hashedPhone = this.hashValue(userData.numero_telefone);
+
+    // Verificar se CPF já existe (buscar pelo hash)
+    const existingCPF = await usuarioModel.findByCPF(hashedCPF);
     if (existingCPF) {
       throw new Error('CPF já cadastrado');
     }
@@ -36,13 +49,13 @@ const authService = {
     // Hash da senha em MD5
     const hashedPassword = this.hashPassword(userData.senha);
 
-    // Preparar dados para inserção
+    // Preparar dados para inserção (com CPF e telefone hasheados)
     const userToCreate = {
       nome: userData.nome,
       email: userData.email,
-      numero_telefone: userData.numero_telefone,
+      numero_telefone: hashedPhone,
       senha: hashedPassword,
-      cpf: userData.cpf,
+      cpf: hashedCPF,
       nascimento: userData.nascimento,
       admin: userData.admin || 0,
     };
@@ -50,9 +63,9 @@ const authService = {
     // Criar usuário
     const user = await usuarioModel.create(userToCreate);
 
-    // Retornar dados sem a senha
-    const { senha, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    // Retornar dados sem a senha, CPF e telefone (dados sensíveis)
+    const { senha, cpf, numero_telefone, ...userWithoutSensitiveData } = user;
+    return userWithoutSensitiveData;
   },
 
   /**
@@ -70,9 +83,9 @@ const authService = {
       throw new Error('Email ou senha inválidos');
     }
 
-    // Retornar dados sem a senha
-    const { senha: _, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    // Retornar dados sem a senha, CPF e telefone (dados sensíveis)
+    const { senha: _, cpf, numero_telefone, ...userWithoutSensitiveData } = user;
+    return userWithoutSensitiveData;
   },
 };
 

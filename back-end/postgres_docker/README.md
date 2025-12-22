@@ -1,73 +1,88 @@
-# Docker PostgreSQL - Loja Web
+# 🐳 Docker PostgreSQL Setup
 
-Configuração do PostgreSQL usando Docker Compose.
+Este diretório contém a configuração do PostgreSQL usando Docker Compose.
+
+## 📋 Estrutura
+
+```
+postgres_docker/
+├── docker-compose.yml    # Configuração do container PostgreSQL
+├── init/                 # Scripts SQL executados na primeira inicialização
+│   ├── 01-init.sql      # Criação das tabelas (estrutura)
+│   └── 02-seed-data.sql # Dados iniciais (será executado após 01-init.sql)
+└── data/                # Dados do banco (volume Docker - não commitado)
+```
 
 ## 🚀 Como Usar
 
-### Primeira vez (cria banco e tabelas)
+### 1. Iniciar o banco de dados
+
 ```bash
+cd back-end/postgres_docker
 docker-compose up -d
 ```
 
-### Parar o container
+Isso irá:
+- Criar o container PostgreSQL
+- Executar `01-init.sql` (cria as tabelas)
+- Executar `02-seed-data.sql` (insere dados iniciais, se existirem)
+
+### 2. Parar o banco de dados
+
 ```bash
 docker-compose down
 ```
 
-### Parar e remover volumes (apaga todos os dados)
+### 3. Parar e remover todos os dados (⚠️ CUIDADO!)
+
 ```bash
 docker-compose down -v
 ```
 
-### Ver logs
+Isso remove o volume com todos os dados. Na próxima inicialização, os scripts serão executados novamente.
+
+## 📦 Exportar Dados Atuais
+
+Se você cadastrou dados e quer que eles sejam incluídos no repositório:
+
 ```bash
-docker-compose logs -f
+cd back-end
+npm run dump:db
 ```
 
-## ⚠️ Importante
+Isso irá:
+- Exportar todos os dados do banco atual
+- Salvar em `postgres_docker/init/02-seed-data.sql`
+- Você pode fazer commit deste arquivo no Git
 
-### Por que as tabelas não são criadas em outro ambiente?
+**Importante:** 
+- Execute `npm run dump:db` sempre que quiser atualizar os dados no repositório
+- Faça commit do arquivo `02-seed-data.sql` após exportar
+- Outras pessoas que fizerem `docker-compose up` terão os mesmos dados
 
-O PostgreSQL Docker **só executa scripts da pasta `init/` na primeira inicialização**, quando o volume está vazio.
+## 🔄 Fluxo Completo
 
-**Se você já tem dados no volume:**
-1. Pare o container: `docker-compose down`
-2. Remova o volume: `docker-compose down -v`
-3. Inicie novamente: `docker-compose up -d`
+1. **Primeira vez (você):**
+   ```bash
+   docker-compose up -d
+   # Cadastra dados na aplicação
+   npm run dump:db
+   git add postgres_docker/init/02-seed-data.sql
+   git commit -m "Adiciona dados iniciais"
+   git push
+   ```
 
-**Ou execute o SQL manualmente:**
-```bash
-# Conectar ao container
-docker exec -it postgres_local psql -U appuser -d appdb
+2. **Outra pessoa (clone do repositório):**
+   ```bash
+   git clone <repositorio>
+   cd Loja_web/back-end/postgres_docker
+   docker-compose up -d
+   # ✅ Banco criado com estrutura E dados!
+   ```
 
-# Ou executar o SQL diretamente
-docker exec -i postgres_local psql -U appuser -d appdb < ../loja_postgres.sql
-```
+## 📝 Notas
 
-## 📁 Estrutura
-
-```
-postgres_docker/
-├── docker-compose.yml    # Configuração do Docker
-├── init/                 # Scripts SQL executados na primeira inicialização
-│   └── 01-init.sql       # Script de criação das tabelas
-└── data/                 # Dados do PostgreSQL (volume)
-```
-
-## 🔧 Configuração
-
-- **Banco**: appdb
-- **Usuário**: appuser
-- **Senha**: app123
-- **Porta**: 5432
-
-## 📝 Scripts de Inicialização
-
-Os arquivos na pasta `init/` são executados em ordem alfabética quando o banco é criado pela primeira vez.
-
-**Importante**: 
-- Scripts só rodam quando o volume está vazio
-- Use `SERIAL` ao invés de `INTEGER` para IDs auto-incrementais
-- Adicione `UNIQUE` onde necessário (email, CPF, etc)
-- Use `ON DELETE CASCADE` para manter integridade referencial
-
+- Os scripts em `init/` são executados **apenas na primeira inicialização** do banco
+- Se você já tem um banco rodando, os scripts não serão executados novamente
+- Para forçar a execução novamente, remova o volume: `docker-compose down -v`
+- O arquivo `02-seed-data.sql` é commitado no Git, então os dados estarão disponíveis para todos

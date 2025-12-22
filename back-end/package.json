@@ -7,6 +7,12 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test:db": "node src/test-connection.js",
+    "init:db": "node scripts/init-database.js",
+    "dump:db": "node scripts/dump-database.js",
+    "check:data": "node scripts/check-database-data.js",
+    "test:hash": "node scripts/test-hash.js",
+    "alter:table": "node scripts/alter-table-hash.js",
+    "migrate:hash": "node scripts/migrate-hash-data.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
