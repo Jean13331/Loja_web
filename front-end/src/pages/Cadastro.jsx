@@ -1,8 +1,20 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import {
+  Box,
+  Container,
+  Paper,
+  Typography,
+  TextField,
+  Button,
+  Alert,
+  Link as MuiLink,
+  CircularProgress,
+  Grid
+} from '@mui/material'
+import { ShoppingCart } from '@mui/icons-material'
 import authService from '../services/authService'
-import { isValidEmail, isValidCPF } from '../utils/validation'
-import './Auth.css'
+import { isValidEmail, isValidCPF, isValidPhone } from '../utils/validation'
 
 const Cadastro = () => {
   const navigate = useNavigate()
@@ -18,6 +30,7 @@ const Cadastro = () => {
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [dateFocused, setDateFocused] = useState(false)
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -91,9 +104,8 @@ const Cadastro = () => {
     if (!formData.numero_telefone) {
       newErrors.numero_telefone = 'Telefone é obrigatório'
     } else {
-      const phoneNumbers = formData.numero_telefone.replace(/\D/g, '')
-      if (phoneNumbers.length < 10 || phoneNumbers.length > 11) {
-        newErrors.numero_telefone = 'Telefone inválido'
+      if (!isValidPhone(formData.numero_telefone)) {
+        newErrors.numero_telefone = 'Telefone inválido. Use formato (DDD) 9XXXX-XXXX para celular ou (DDD) XXXX-XXXX para fixo'
       }
     }
 
@@ -113,8 +125,10 @@ const Cadastro = () => {
       newErrors.cpf = 'CPF é obrigatório'
     } else {
       const cleanCPF = formData.cpf.replace(/\D/g, '')
-      if (!isValidCPF(cleanCPF)) {
-        newErrors.cpf = 'CPF inválido'
+      if (cleanCPF.length !== 11) {
+        newErrors.cpf = 'CPF deve ter 11 dígitos'
+      } else if (!isValidCPF(cleanCPF)) {
+        newErrors.cpf = 'CPF inválido. Verifique os dígitos'
       }
     }
 
@@ -123,9 +137,29 @@ const Cadastro = () => {
     } else {
       const birthDate = new Date(formData.nascimento)
       const today = new Date()
-      const age = today.getFullYear() - birthDate.getFullYear()
-      if (age < 18) {
-        newErrors.nascimento = 'Você deve ter pelo menos 18 anos'
+      
+      // Verificar se a data é válida
+      if (isNaN(birthDate.getTime())) {
+        newErrors.nascimento = 'Data de nascimento inválida'
+      } else {
+        // Calcular idade considerando mês e dia
+        let age = today.getFullYear() - birthDate.getFullYear()
+        const monthDiff = today.getMonth() - birthDate.getMonth()
+        const dayDiff = today.getDate() - birthDate.getDate()
+        
+        // Ajustar idade se ainda não fez aniversário este ano
+        if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+          age--
+        }
+        
+        if (age < 16) {
+          newErrors.nascimento = 'Você deve ter pelo menos 16 anos'
+        }
+        
+        // Verificar se a data não é no futuro
+        if (birthDate > today) {
+          newErrors.nascimento = 'Data de nascimento não pode ser no futuro'
+        }
       }
     }
 
@@ -176,131 +210,819 @@ const Cadastro = () => {
   }
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h1>Cadastro</h1>
-        <p className="auth-subtitle">Crie sua conta</p>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 2,
+        background: 'linear-gradient(135deg, #FFF8F0 0%, #FFEEDD 50%, #FFF5E6 100%)',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Ícones de caju decorativos no fundo */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          overflow: 'hidden',
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      >
+        {/* SVG de caju - formato característico com castanha */}
+        <svg
+          viewBox="0 0 100 120"
+          style={{
+            position: 'absolute',
+            top: '15%',
+            left: '10%',
+            width: '60px',
+            height: '72px',
+            opacity: 0.15,
+            transform: 'rotate(-20deg)',
+          }}
+        >
+          <ellipse cx="50" cy="80" rx="35" ry="30" fill="#F7401B" />
+          <ellipse cx="50" cy="75" rx="30" ry="25" fill="#FF6B35" />
+          <circle cx="50" cy="30" r="12" fill="#8B4513" />
+        </svg>
+        <svg
+          viewBox="0 0 100 120"
+          style={{
+            position: 'absolute',
+            top: '25%',
+            right: '15%',
+            width: '50px',
+            height: '60px',
+            opacity: 0.15,
+            transform: 'rotate(15deg)',
+          }}
+        >
+          <ellipse cx="50" cy="80" rx="30" ry="28" fill="#FF6B35" />
+          <ellipse cx="50" cy="75" rx="25" ry="23" fill="#F7401B" />
+          <circle cx="50" cy="30" r="10" fill="#8B4513" />
+        </svg>
+        <svg
+          viewBox="0 0 100 120"
+          style={{
+            position: 'absolute',
+            top: '40%',
+            left: '8%',
+            width: '55px',
+            height: '66px',
+            opacity: 0.15,
+            transform: 'rotate(-10deg)',
+          }}
+        >
+          <ellipse cx="50" cy="80" rx="32" ry="29" fill="#F7401B" />
+          <ellipse cx="50" cy="75" rx="27" ry="24" fill="#FF6B35" />
+          <circle cx="50" cy="30" r="11" fill="#8B4513" />
+        </svg>
+        <svg
+          viewBox="0 0 100 120"
+          style={{
+            position: 'absolute',
+            top: '50%',
+            right: '12%',
+            width: '45px',
+            height: '54px',
+            opacity: 0.15,
+            transform: 'rotate(25deg)',
+          }}
+        >
+          <ellipse cx="50" cy="80" rx="28" ry="26" fill="#FF6B35" />
+          <ellipse cx="50" cy="75" rx="23" ry="21" fill="#F7401B" />
+          <circle cx="50" cy="30" r="9" fill="#8B4513" />
+        </svg>
+        <svg
+          viewBox="0 0 100 120"
+          style={{
+            position: 'absolute',
+            bottom: '20%',
+            left: '15%',
+            width: '60px',
+            height: '72px',
+            opacity: 0.15,
+            transform: 'rotate(-15deg)',
+          }}
+        >
+          <ellipse cx="50" cy="80" rx="35" ry="30" fill="#F7401B" />
+          <ellipse cx="50" cy="75" rx="30" ry="25" fill="#FF6B35" />
+          <circle cx="50" cy="30" r="12" fill="#8B4513" />
+        </svg>
+        <svg
+          viewBox="0 0 100 120"
+          style={{
+            position: 'absolute',
+            bottom: '30%',
+            right: '10%',
+            width: '50px',
+            height: '60px',
+            opacity: 0.15,
+            transform: 'rotate(20deg)',
+          }}
+        >
+          <ellipse cx="50" cy="80" rx="30" ry="28" fill="#FF6B35" />
+          <ellipse cx="50" cy="75" rx="25" ry="23" fill="#F7401B" />
+          <circle cx="50" cy="30" r="10" fill="#8B4513" />
+        </svg>
+        <svg
+          viewBox="0 0 100 120"
+          style={{
+            position: 'absolute',
+            bottom: '15%',
+            left: '25%',
+            width: '55px',
+            height: '66px',
+            opacity: 0.15,
+            transform: 'rotate(-25deg)',
+          }}
+        >
+          <ellipse cx="50" cy="80" rx="32" ry="29" fill="#F7401B" />
+          <ellipse cx="50" cy="75" rx="27" ry="24" fill="#FF6B35" />
+          <circle cx="50" cy="30" r="11" fill="#8B4513" />
+        </svg>
+        <svg
+          viewBox="0 0 100 120"
+          style={{
+            position: 'absolute',
+            top: '60%',
+            right: '8%',
+            width: '45px',
+            height: '54px',
+            opacity: 0.15,
+            transform: 'rotate(10deg)',
+          }}
+        >
+          <ellipse cx="50" cy="80" rx="28" ry="26" fill="#FF6B35" />
+          <ellipse cx="50" cy="75" rx="23" ry="21" fill="#F7401B" />
+          <circle cx="50" cy="30" r="9" fill="#8B4513" />
+        </svg>
+        <svg
+          viewBox="0 0 100 120"
+          style={{
+            position: 'absolute',
+            top: '70%',
+            left: '20%',
+            width: '50px',
+            height: '60px',
+            opacity: 0.15,
+            transform: 'rotate(-18deg)',
+          }}
+        >
+          <ellipse cx="50" cy="80" rx="30" ry="28" fill="#F7401B" />
+          <ellipse cx="50" cy="75" rx="25" ry="23" fill="#FF6B35" />
+          <circle cx="50" cy="30" r="10" fill="#8B4513" />
+        </svg>
+        <svg
+          viewBox="0 0 100 120"
+          style={{
+            position: 'absolute',
+            bottom: '40%',
+            right: '20%',
+            width: '55px',
+            height: '66px',
+            opacity: 0.15,
+            transform: 'rotate(22deg)',
+          }}
+        >
+          <ellipse cx="50" cy="80" rx="32" ry="29" fill="#FF6B35" />
+          <ellipse cx="50" cy="75" rx="27" ry="24" fill="#F7401B" />
+          <circle cx="50" cy="30" r="11" fill="#8B4513" />
+        </svg>
+      </Box>
+      <Container 
+        maxWidth="md"
+        sx={{
+          overflow: 'visible',
+          position: 'relative',
+          zIndex: 1,
+          '& > *': {
+            overflow: 'visible',
+          },
+        }}
+      >
+        <Paper
+          elevation={8}
+          sx={{
+            padding: { xs: 3, sm: 4 },
+            paddingTop: { xs: 7, sm: 8 },
+            borderRadius: 3,
+            background: 'linear-gradient(135deg, #F7401B 0%, #FF6B35 100%)',
+            overflow: 'visible',
+            position: 'relative',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
+          }}
+        >
+          <Box sx={{ textAlign: 'center', mb: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 1 }}>
+              <ShoppingCart sx={{ fontSize: 40, color: 'white' }} />
+              <Typography variant="h4" component="h1" sx={{ fontWeight: 600, color: 'white', margin: 0 }}>
+                Cajuzinho
+              </Typography>
+            </Box>
+            <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.9)' }}>
+              Plataforma de compras online
+            </Typography>
+          </Box>
 
-        {errorMessage && (
-          <div className="error-message">{errorMessage}</div>
-        )}
+          {errorMessage && (
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mb: 2,
+                backgroundColor: 'rgba(220, 53, 69, 0.2)',
+                color: 'white',
+                '& .MuiAlert-icon': {
+                  color: 'white',
+                },
+              }}
+            >
+              {errorMessage}
+            </Alert>
+          )}
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="nome">Nome Completo</label>
-            <input
-              type="text"
-              id="nome"
-              name="nome"
-              value={formData.nome}
-              onChange={handleChange}
-              className={errors.nome ? 'error' : ''}
-              placeholder="Seu nome completo"
-            />
-            {errors.nome && <span className="error-text">{errors.nome}</span>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className={errors.email ? 'error' : ''}
-              placeholder="seu@email.com"
-            />
-            {errors.email && <span className="error-text">{errors.email}</span>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="numero_telefone">Telefone</label>
-            <input
-              type="text"
-              id="numero_telefone"
-              name="numero_telefone"
-              value={formData.numero_telefone}
-              onChange={handlePhoneChange}
-              className={errors.numero_telefone ? 'error' : ''}
-              placeholder="(00) 00000-0000"
-              maxLength="15"
-            />
-            {errors.numero_telefone && <span className="error-text">{errors.numero_telefone}</span>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="cpf">CPF</label>
-            <input
-              type="text"
-              id="cpf"
-              name="cpf"
-              value={formData.cpf}
-              onChange={handleCPFChange}
-              className={errors.cpf ? 'error' : ''}
-              placeholder="000.000.000-00"
-              maxLength="14"
-            />
-            {errors.cpf && <span className="error-text">{errors.cpf}</span>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="nascimento">Data de Nascimento</label>
-            <input
-              type="date"
-              id="nascimento"
-              name="nascimento"
-              value={formData.nascimento}
-              onChange={handleChange}
-              className={errors.nascimento ? 'error' : ''}
-            />
-            {errors.nascimento && <span className="error-text">{errors.nascimento}</span>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="senha">Senha</label>
-            <input
-              type="password"
-              id="senha"
-              name="senha"
-              value={formData.senha}
-              onChange={handleChange}
-              className={errors.senha ? 'error' : ''}
-              placeholder="Mínimo 6 caracteres"
-            />
-            {errors.senha && <span className="error-text">{errors.senha}</span>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="confirmarSenha">Confirmar Senha</label>
-            <input
-              type="password"
-              id="confirmarSenha"
-              name="confirmarSenha"
-              value={formData.confirmarSenha}
-              onChange={handleChange}
-              className={errors.confirmarSenha ? 'error' : ''}
-              placeholder="Digite a senha novamente"
-            />
-            {errors.confirmarSenha && <span className="error-text">{errors.confirmarSenha}</span>}
-          </div>
-
-          <button 
-            type="submit" 
-            className="btn-primary"
-            disabled={loading}
+          <Box 
+            component="form" 
+            onSubmit={handleSubmit} 
+            sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: 4,
+              overflow: 'visible',
+              marginTop: 1,
+              '& > *': {
+                overflow: 'visible',
+              },
+            }}
           >
-            {loading ? 'Cadastrando...' : 'Cadastrar'}
-          </button>
-        </form>
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Nome Completo"
+                  name="nome"
+                  value={formData.nome}
+                  onChange={handleChange}
+                  error={!!errors.nome}
+                  helperText={errors.nome}
+                  placeholder="Seu nome completo"
+                  disabled={loading}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: 'white',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                      '& input': {
+                        color: '#213547',
+                      },
+                      '& input::placeholder': {
+                        color: '#999',
+                        opacity: 1,
+                        textShadow: '0.5px 0.5px 1px rgba(255, 255, 255, 0.9), -0.5px -0.5px 1px rgba(255, 255, 255, 0.9), 0.5px -0.5px 1px rgba(255, 255, 255, 0.9), -0.5px 0.5px 1px rgba(255, 255, 255, 0.9)',
+                        WebkitTextStroke: '0.3px rgba(255, 255, 255, 0.9)',
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: '#666',
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: 'white',
+                    },
+                    '& .MuiInputLabel-root.MuiInputLabel-shrink': {
+                      color: 'white',
+                      backgroundColor: 'transparent',
+                      transform: 'translate(14px, -22px) scale(0.8)',
+                      top: 0,
+                      zIndex: 1,
+                    },
+                    '& .MuiInputBase-root': {
+                      overflow: 'visible',
+                    },
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiFormHelperText-root': {
+                      color: 'white !important',
+                      backgroundColor: 'transparent',
+                      margin: '4px 0 0 0',
+                      padding: 0,
+                      fontSize: '0.8rem',
+                      textDecoration: 'underline',
+                      textUnderlineOffset: '3px',
+                    },
+                    '& .MuiFormHelperText-root.Mui-error': {
+                      color: 'white !important',
+                    },
+                  }}
+                />
+              </Grid>
 
-        <p className="auth-link">
-          Já tem uma conta? <Link to="/login">Faça login</Link>
-        </p>
-      </div>
-    </div>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Email"
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  error={!!errors.email}
+                  helperText={errors.email}
+                  placeholder="seu@email.com"
+                  disabled={loading}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: 'white',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                      '& input': {
+                        color: '#213547',
+                      },
+                      '& input::placeholder': {
+                        color: '#999',
+                        opacity: 1,
+                        textShadow: '0.5px 0.5px 1px rgba(255, 255, 255, 0.9), -0.5px -0.5px 1px rgba(255, 255, 255, 0.9), 0.5px -0.5px 1px rgba(255, 255, 255, 0.9), -0.5px 0.5px 1px rgba(255, 255, 255, 0.9)',
+                        WebkitTextStroke: '0.3px rgba(255, 255, 255, 0.9)',
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: '#666',
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: 'white',
+                    },
+                    '& .MuiInputLabel-root.MuiInputLabel-shrink': {
+                      color: 'white',
+                      backgroundColor: 'transparent',
+                      transform: 'translate(14px, -22px) scale(0.8)',
+                      top: 0,
+                      zIndex: 1,
+                    },
+                    '& .MuiInputBase-root': {
+                      overflow: 'visible',
+                    },
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiFormHelperText-root': {
+                      color: 'white !important',
+                      backgroundColor: 'transparent',
+                      margin: '4px 0 0 0',
+                      padding: 0,
+                      fontSize: '0.8rem',
+                      textDecoration: 'underline',
+                      textUnderlineOffset: '3px',
+                    },
+                    '& .MuiFormHelperText-root.Mui-error': {
+                      color: 'white !important',
+                    },
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Telefone"
+                  name="numero_telefone"
+                  value={formData.numero_telefone}
+                  onChange={handlePhoneChange}
+                  error={!!errors.numero_telefone}
+                  helperText={errors.numero_telefone}
+                  placeholder="(00) 00000-0000"
+                  inputProps={{ maxLength: 15 }}
+                  disabled={loading}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: 'white',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                      '& input': {
+                        color: '#213547',
+                      },
+                      '& input::placeholder': {
+                        color: '#999',
+                        opacity: 1,
+                        textShadow: '0.5px 0.5px 1px rgba(255, 255, 255, 0.9), -0.5px -0.5px 1px rgba(255, 255, 255, 0.9), 0.5px -0.5px 1px rgba(255, 255, 255, 0.9), -0.5px 0.5px 1px rgba(255, 255, 255, 0.9)',
+                        WebkitTextStroke: '0.3px rgba(255, 255, 255, 0.9)',
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: '#666',
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: 'white',
+                    },
+                    '& .MuiInputLabel-root.MuiInputLabel-shrink': {
+                      color: 'white',
+                      backgroundColor: 'transparent',
+                      transform: 'translate(14px, -22px) scale(0.8)',
+                      top: 0,
+                      zIndex: 1,
+                    },
+                    '& .MuiInputBase-root': {
+                      overflow: 'visible',
+                    },
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiFormHelperText-root': {
+                      color: 'white !important',
+                      backgroundColor: 'transparent',
+                      margin: '4px 0 0 0',
+                      padding: 0,
+                      fontSize: '0.8rem',
+                      textDecoration: 'underline',
+                      textUnderlineOffset: '3px',
+                    },
+                    '& .MuiFormHelperText-root.Mui-error': {
+                      color: 'white !important',
+                    },
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="CPF"
+                  name="cpf"
+                  value={formData.cpf}
+                  onChange={handleCPFChange}
+                  error={!!errors.cpf}
+                  helperText={errors.cpf}
+                  placeholder="000.000.000-00"
+                  inputProps={{ maxLength: 14 }}
+                  disabled={loading}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: 'white',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                      '& input': {
+                        color: '#213547',
+                      },
+                      '& input::placeholder': {
+                        color: '#999',
+                        opacity: 1,
+                        textShadow: '0.5px 0.5px 1px rgba(255, 255, 255, 0.9), -0.5px -0.5px 1px rgba(255, 255, 255, 0.9), 0.5px -0.5px 1px rgba(255, 255, 255, 0.9), -0.5px 0.5px 1px rgba(255, 255, 255, 0.9)',
+                        WebkitTextStroke: '0.3px rgba(255, 255, 255, 0.9)',
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: '#666',
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: 'white',
+                    },
+                    '& .MuiInputLabel-root.MuiInputLabel-shrink': {
+                      color: 'white',
+                      backgroundColor: 'transparent',
+                      transform: 'translate(14px, -22px) scale(0.8)',
+                      top: 0,
+                      zIndex: 1,
+                    },
+                    '& .MuiInputBase-root': {
+                      overflow: 'visible',
+                    },
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiFormHelperText-root': {
+                      color: 'white !important',
+                      backgroundColor: 'transparent',
+                      margin: '4px 0 0 0',
+                      padding: 0,
+                      fontSize: '0.8rem',
+                      textDecoration: 'underline',
+                      textUnderlineOffset: '3px',
+                    },
+                    '& .MuiFormHelperText-root.Mui-error': {
+                      color: 'white !important',
+                    },
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Data de Nascimento"
+                  type="date"
+                  name="nascimento"
+                  value={formData.nascimento}
+                  onChange={handleChange}
+                  onFocus={() => setDateFocused(true)}
+                  onBlur={() => setDateFocused(false)}
+                  error={!!errors.nascimento}
+                  helperText={errors.nascimento}
+                  disabled={loading}
+                  InputLabelProps={{
+                    shrink: dateFocused || !!formData.nascimento,
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: 'white',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                      '& input': {
+                        color: '#213547',
+                        '&::-webkit-calendar-picker-indicator': {
+                          cursor: 'pointer',
+                          opacity: 1,
+                        },
+                        '&::-webkit-datetime-edit-text': {
+                          color: formData.nascimento ? '#213547' : 'transparent',
+                        },
+                        '&::-webkit-datetime-edit-month-field': {
+                          color: formData.nascimento ? '#213547' : 'transparent',
+                        },
+                        '&::-webkit-datetime-edit-day-field': {
+                          color: formData.nascimento ? '#213547' : 'transparent',
+                        },
+                        '&::-webkit-datetime-edit-year-field': {
+                          color: formData.nascimento ? '#213547' : 'transparent',
+                        },
+                        '&:focus::-webkit-datetime-edit-text': {
+                          color: '#213547',
+                        },
+                        '&:focus::-webkit-datetime-edit-month-field': {
+                          color: '#213547',
+                        },
+                        '&:focus::-webkit-datetime-edit-day-field': {
+                          color: '#213547',
+                        },
+                        '&:focus::-webkit-datetime-edit-year-field': {
+                          color: '#213547',
+                        },
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: '#666',
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: 'white',
+                    },
+                    '& .MuiInputLabel-root.MuiInputLabel-shrink': {
+                      color: 'white',
+                      backgroundColor: 'transparent',
+                      transform: 'translate(14px, -22px) scale(0.8)',
+                      top: 0,
+                      zIndex: 1,
+                    },
+                    '& .MuiInputBase-root': {
+                      overflow: 'visible',
+                    },
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiFormHelperText-root': {
+                      color: 'white !important',
+                      backgroundColor: 'transparent',
+                      margin: '4px 0 0 0',
+                      padding: 0,
+                      fontSize: '0.8rem',
+                      textDecoration: 'underline',
+                      textUnderlineOffset: '3px',
+                    },
+                    '& .MuiFormHelperText-root.Mui-error': {
+                      color: 'white !important',
+                    },
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Senha"
+                  type="password"
+                  name="senha"
+                  value={formData.senha}
+                  onChange={handleChange}
+                  error={!!errors.senha}
+                  helperText={errors.senha}
+                  placeholder="Mínimo 6 caracteres"
+                  disabled={loading}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: 'white',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                      '& input': {
+                        color: '#213547',
+                      },
+                      '& input::placeholder': {
+                        color: '#999',
+                        opacity: 1,
+                        textShadow: '0.5px 0.5px 1px rgba(255, 255, 255, 0.9), -0.5px -0.5px 1px rgba(255, 255, 255, 0.9), 0.5px -0.5px 1px rgba(255, 255, 255, 0.9), -0.5px 0.5px 1px rgba(255, 255, 255, 0.9)',
+                        WebkitTextStroke: '0.3px rgba(255, 255, 255, 0.9)',
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: '#666',
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: 'white',
+                    },
+                    '& .MuiInputLabel-root.MuiInputLabel-shrink': {
+                      color: 'white',
+                      backgroundColor: 'transparent',
+                      transform: 'translate(14px, -22px) scale(0.8)',
+                      top: 0,
+                      zIndex: 1,
+                    },
+                    '& .MuiInputBase-root': {
+                      overflow: 'visible',
+                    },
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiFormHelperText-root': {
+                      color: 'white !important',
+                      backgroundColor: 'transparent',
+                      margin: '4px 0 0 0',
+                      padding: 0,
+                      fontSize: '0.8rem',
+                      textDecoration: 'underline',
+                      textUnderlineOffset: '3px',
+                    },
+                    '& .MuiFormHelperText-root.Mui-error': {
+                      color: 'white !important',
+                    },
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Confirmar Senha"
+                  type="password"
+                  name="confirmarSenha"
+                  value={formData.confirmarSenha}
+                  onChange={handleChange}
+                  error={!!errors.confirmarSenha}
+                  helperText={errors.confirmarSenha}
+                  placeholder="Digite a senha novamente"
+                  disabled={loading}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: 'white',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                      '& input': {
+                        color: '#213547',
+                      },
+                      '& input::placeholder': {
+                        color: '#999',
+                        opacity: 1,
+                        textShadow: '0.5px 0.5px 1px rgba(255, 255, 255, 0.9), -0.5px -0.5px 1px rgba(255, 255, 255, 0.9), 0.5px -0.5px 1px rgba(255, 255, 255, 0.9), -0.5px 0.5px 1px rgba(255, 255, 255, 0.9)',
+                        WebkitTextStroke: '0.3px rgba(255, 255, 255, 0.9)',
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: '#666',
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: 'white',
+                    },
+                    '& .MuiInputLabel-root.MuiInputLabel-shrink': {
+                      color: 'white',
+                      backgroundColor: 'transparent',
+                      transform: 'translate(14px, -22px) scale(0.8)',
+                      top: 0,
+                      zIndex: 1,
+                    },
+                    '& .MuiInputBase-root': {
+                      overflow: 'visible',
+                    },
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'transparent',
+                    },
+                    '& .MuiFormHelperText-root': {
+                      color: 'white !important',
+                      backgroundColor: 'transparent',
+                      margin: '4px 0 0 0',
+                      padding: 0,
+                      fontSize: '0.8rem',
+                      textDecoration: 'underline',
+                      textUnderlineOffset: '3px',
+                    },
+                    '& .MuiFormHelperText-root.Mui-error': {
+                      color: 'white !important',
+                    },
+                  }}
+                />
+              </Grid>
+            </Grid>
+
+            <Button
+              type="submit"
+              variant="outlined"
+              disabled={loading}
+              sx={{
+                mt: 1,
+                py: 0.75,
+                px: 4,
+                fontSize: '0.9rem',
+                minHeight: '42px',
+                backgroundColor: 'white',
+                color: '#F7401B',
+                fontWeight: 600,
+                border: 'none',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                background: 'white',
+                borderRadius: '8px',
+                '&:hover': {
+                  backgroundColor: 'white',
+                  background: 'white',
+                  color: '#F7401B',
+                  opacity: 0.9,
+                  border: 'none',
+                  boxShadow: '0 6px 16px rgba(0, 0, 0, 0.25)',
+                },
+                '&:disabled': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                  background: 'rgba(255, 255, 255, 0.6)',
+                  color: '#F7401B',
+                  border: 'none',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                },
+              }}
+            >
+              {loading ? (
+                <CircularProgress size={24} sx={{ color: '#F7401B' }} />
+              ) : (
+                'Cadastrar'
+              )}
+            </Button>
+          </Box>
+
+          <Box sx={{ textAlign: 'center', mt: 3 }}>
+            <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.9)' }}>
+              Já tem uma conta?{' '}
+              <MuiLink
+                component={Link}
+                to="/login"
+                sx={{
+                  color: 'white',
+                  fontWeight: 600,
+                  textDecoration: 'underline',
+                  '&:hover': {
+                    color: 'rgba(255, 255, 255, 0.8)',
+                  },
+                }}
+              >
+                Faça login
+              </MuiLink>
+            </Typography>
+          </Box>
+        </Paper>
+      </Container>
+    </Box>
   )
 }
 
 export default Cadastro
-
