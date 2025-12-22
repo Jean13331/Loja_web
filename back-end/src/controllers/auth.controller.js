@@ -7,8 +7,11 @@ const authController = {
    * Registra um novo usuário
    */
   register: asyncHandler(async (req, res) => {
-    const user = await authService.register(req.body);
-    return responseHelper.created(res, user, 'Usuário cadastrado com sucesso');
+    const result = await authService.register(req.body);
+    return responseHelper.created(res, {
+      user: result.user,
+      token: result.token,
+    }, 'Usuário cadastrado com sucesso');
   }),
 
   /**
@@ -21,14 +24,25 @@ const authController = {
       return responseHelper.error(res, 'Email e senha são obrigatórios', 400);
     }
 
-    const user = await authService.login(email, senha);
+    const result = await authService.login(email, senha);
     
-    // Aqui você pode gerar um token JWT se quiser
-    // Por enquanto, retornamos apenas os dados do usuário
     return responseHelper.success(res, {
-      user,
-      // token: 'seu-token-jwt-aqui' // Implementar JWT depois se necessário
+      user: result.user,
+      token: result.token,
     }, 'Login realizado com sucesso');
+  }),
+
+  /**
+   * Verifica se o token é válido
+   * Esta rota é protegida pelo middleware authenticate
+   */
+  verifyToken: asyncHandler(async (req, res) => {
+    // Se chegou aqui, o token é válido (middleware authenticate já validou)
+    // Retornar dados do usuário do token
+    return responseHelper.success(res, {
+      user: req.user,
+      valid: true,
+    }, 'Token válido');
   }),
 };
 

@@ -23,6 +23,17 @@ class Usuario extends BaseModel {
   }
 
   /**
+   * Busca usuário por ID
+   */
+  async findById(id) {
+    const result = await query(
+      `SELECT * FROM ${this.tableName} WHERE idusuario = $1`,
+      [id]
+    );
+    return result.rows[0];
+  }
+
+  /**
    * Cria um novo usuário
    * Nota: idusuario deve ser gerado automaticamente (SERIAL) ou fornecido
    */

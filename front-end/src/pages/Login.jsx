@@ -83,16 +83,30 @@ const Login = () => {
     try {
       const response = await authService.login(formData.email, formData.senha)
       
+      // Debug: verificar estrutura da resposta
+      console.log('Resposta do login:', response)
+      
       // Salvar token e dados do usuário
-      if (response.data?.token) {
+      // response já é o response.data do axios, que contém { status, message, data }
+      // response.data contém { user, token }
+      if (response?.data?.token) {
         localStorage.setItem('token', response.data.token)
         localStorage.setItem('user', JSON.stringify(response.data.user))
         
-        // Redirecionar para a página inicial
-        navigate('/')
+        // Redirecionar para a página inicial (Home)
+        navigate('/home')
+      } else {
+        console.error('Token não encontrado na resposta:', response)
+        setErrorMessage('Token não recebido. Tente novamente.')
       }
     } catch (error) {
-      setErrorMessage(error.message || 'Erro ao fazer login. Verifique suas credenciais.')
+      console.error('Erro no login:', error)
+      // O erro pode vir de diferentes formas dependendo de onde foi lançado
+      const errorMessage = error.response?.data?.message || 
+                          error.data?.message || 
+                          error.message || 
+                          'Erro ao fazer login. Verifique suas credenciais.'
+      setErrorMessage(errorMessage)
     } finally {
       setLoading(false)
     }

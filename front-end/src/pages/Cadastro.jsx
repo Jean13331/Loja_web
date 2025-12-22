@@ -192,10 +192,11 @@ const Cadastro = () => {
       const response = await authService.register(userData)
       
       // Se o registro retornar token, fazer login automático
-      if (response.data?.token) {
+      // response já é o response.data do axios, que contém { status, message, data }
+      if (response?.data?.token) {
         localStorage.setItem('token', response.data.token)
         localStorage.setItem('user', JSON.stringify(response.data.user))
-        navigate('/')
+        navigate('/home')
       } else {
         // Se não retornar token, redirecionar para login
         navigate('/login', { 

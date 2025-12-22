@@ -27,6 +27,7 @@ api.interceptors.request.use(
 // Interceptor para respostas
 api.interceptors.response.use(
   (response) => {
+    // Retorna o data do axios, que já contém a estrutura { data, message, etc }
     return response.data
   },
   (error) => {
@@ -44,6 +45,7 @@ api.interceptors.response.use(
       return Promise.reject({
         message: data?.message || 'Erro ao processar requisição',
         status,
+        response: error.response, // Manter referência completa para debug
         data: data?.errors || null,
       })
     } else if (error.request) {

@@ -1,5 +1,6 @@
 const usuarioModel = require('../models/Usuario');
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 
 const authService = {
   /**
@@ -24,6 +25,35 @@ const authService = {
     // Remove caracteres não numéricos antes de fazer hash
     const cleanValue = value.replace(/\D/g, '');
     return crypto.createHash('md5').update(cleanValue).digest('hex');
+  },
+
+  /**
+   * Gera token JWT para o usuário
+   */
+  generateToken(user) {
+    const secret = process.env.JWT_SECRET || 'seu-secret-key-aqui-mude-em-producao';
+    const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
+    
+    const payload = {
+      id: user.idusuario,
+      email: user.email,
+      nome: user.nome,
+      admin: user.admin,
+    };
+    
+    return jwt.sign(payload, secret, { expiresIn });
+  },
+
+  /**
+   * Verifica e decodifica token JWT
+   */
+  verifyToken(token) {
+    try {
+      const secret = process.env.JWT_SECRET || 'seu-secret-key-aqui-mude-em-producao';
+      return jwt.verify(token, secret);
+    } catch (error) {
+      throw new Error('Token inválido ou expirado');
+    }
   },
 
   /**
@@ -65,7 +95,14 @@ const authService = {
 
     // Retornar dados sem a senha, CPF e telefone (dados sensíveis)
     const { senha, cpf, numero_telefone, ...userWithoutSensitiveData } = user;
-    return userWithoutSensitiveData;
+    
+    // Gerar token JWT
+    const token = this.generateToken(userWithoutSensitiveData);
+    
+    return {
+      user: userWithoutSensitiveData,
+      token,
+    };
   },
 
   /**
@@ -85,7 +122,14 @@ const authService = {
 
     // Retornar dados sem a senha, CPF e telefone (dados sensíveis)
     const { senha: _, cpf, numero_telefone, ...userWithoutSensitiveData } = user;
-    return userWithoutSensitiveData;
+    
+    // Gerar token JWT
+    const token = this.generateToken(userWithoutSensitiveData);
+    
+    return {
+      user: userWithoutSensitiveData,
+      token,
+    };
   },
 };
 
