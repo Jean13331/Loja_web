@@ -1,10 +1,8 @@
-﻿-- Script gerado a partir do modelo MySQL Workbench
--- Convertido para PostgreSQL
-
+﻿-- =========================================
 -- Tabela: produto
+-- =========================================
 CREATE TABLE IF NOT EXISTS produto (
     idproduto INTEGER NOT NULL,
-    imagem_produto BYTEA NOT NULL,
     nome VARCHAR(45) NOT NULL,
     descricao VARCHAR(5000) NOT NULL,
     valor DECIMAL NOT NULL,
@@ -13,7 +11,24 @@ CREATE TABLE IF NOT EXISTS produto (
     PRIMARY KEY (idproduto)
 );
 
+-- =========================================
+-- Tabela: produto_imagem (N imagens por produto)
+-- =========================================
+CREATE TABLE IF NOT EXISTS produto_imagem (
+    idproduto_imagem INTEGER NOT NULL,
+    produto_idproduto INTEGER NOT NULL,
+    imagem BYTEA NOT NULL,
+    ordem INTEGER,
+    PRIMARY KEY (idproduto_imagem),
+    CONSTRAINT fk_produto_imagem_produto
+        FOREIGN KEY (produto_idproduto)
+        REFERENCES produto (idproduto)
+        ON DELETE CASCADE
+);
+
+-- =========================================
 -- Tabela: usuario
+-- =========================================
 CREATE TABLE IF NOT EXISTS usuario (
     idusuario INTEGER NOT NULL,
     nome VARCHAR(45) NOT NULL,
@@ -26,7 +41,9 @@ CREATE TABLE IF NOT EXISTS usuario (
     PRIMARY KEY (idusuario)
 );
 
+-- =========================================
 -- Tabela: cartoes
+-- =========================================
 CREATE TABLE IF NOT EXISTS cartoes (
     idcartoes INTEGER NOT NULL,
     nome VARCHAR(45) NOT NULL,
@@ -34,10 +51,14 @@ CREATE TABLE IF NOT EXISTS cartoes (
     cvv INTEGER NOT NULL,
     vencimento DATE NOT NULL,
     usuario_idusuario INTEGER NOT NULL,
-    PRIMARY KEY (idcartoes)
+    PRIMARY KEY (idcartoes),
+    FOREIGN KEY (usuario_idusuario)
+        REFERENCES usuario (idusuario)
 );
 
+-- =========================================
 -- Tabela: endereco
+-- =========================================
 CREATE TABLE IF NOT EXISTS endereco (
     idendereco INTEGER NOT NULL,
     estado VARCHAR(45) NOT NULL,
@@ -47,64 +68,104 @@ CREATE TABLE IF NOT EXISTS endereco (
     numero INTEGER,
     complemento VARCHAR(255),
     usuario_idusuario INTEGER NOT NULL,
-    PRIMARY KEY (idendereco)
+    PRIMARY KEY (idendereco),
+    FOREIGN KEY (usuario_idusuario)
+        REFERENCES usuario (idusuario)
 );
 
+-- =========================================
 -- Tabela: produto_favorito
+-- =========================================
 CREATE TABLE IF NOT EXISTS produto_favorito (
     idproduto_favorito INTEGER NOT NULL,
     usuario_idusuario INTEGER NOT NULL,
-    PRIMARY KEY (idproduto_favorito)
+    PRIMARY KEY (idproduto_favorito),
+    FOREIGN KEY (usuario_idusuario)
+        REFERENCES usuario (idusuario)
 );
 
+-- =========================================
 -- Tabela: produto_favorito_has_produto
+-- =========================================
 CREATE TABLE IF NOT EXISTS produto_favorito_has_produto (
     produto_favorito_idproduto_favorito INTEGER NOT NULL,
     produto_idproduto INTEGER NOT NULL,
-    PRIMARY KEY (produto_favorito_idproduto_favorito, produto_idproduto)
+    PRIMARY KEY (produto_favorito_idproduto_favorito, produto_idproduto),
+    FOREIGN KEY (produto_favorito_idproduto_favorito)
+        REFERENCES produto_favorito (idproduto_favorito),
+    FOREIGN KEY (produto_idproduto)
+        REFERENCES produto (idproduto)
 );
 
+-- =========================================
 -- Tabela: avaliacao_usuario
+-- =========================================
 CREATE TABLE IF NOT EXISTS avaliacao_usuario (
     idavaliacao_usuario INTEGER NOT NULL,
     descricao_avaliacao VARCHAR(5000) NOT NULL,
-    avaliacao_nota DECIMAL(2,3) NOT NULL,
+    avaliacao_nota DECIMAL(2,1) NOT NULL,
     PRIMARY KEY (idavaliacao_usuario)
 );
 
+-- =========================================
 -- Tabela: avaliacao_usuario_has_usuario
+-- =========================================
 CREATE TABLE IF NOT EXISTS avaliacao_usuario_has_usuario (
     avaliacao_usuario_idavaliacao_usuario INTEGER NOT NULL,
     usuario_idusuario INTEGER NOT NULL,
-    PRIMARY KEY (avaliacao_usuario_idavaliacao_usuario, usuario_idusuario)
+    PRIMARY KEY (avaliacao_usuario_idavaliacao_usuario, usuario_idusuario),
+    FOREIGN KEY (avaliacao_usuario_idavaliacao_usuario)
+        REFERENCES avaliacao_usuario (idavaliacao_usuario),
+    FOREIGN KEY (usuario_idusuario)
+        REFERENCES usuario (idusuario)
 );
 
+-- =========================================
 -- Tabela: avaliacao_usuario_has_produto
+-- =========================================
 CREATE TABLE IF NOT EXISTS avaliacao_usuario_has_produto (
     avaliacao_usuario_idavaliacao_usuario INTEGER NOT NULL,
     produto_idproduto INTEGER NOT NULL,
-    PRIMARY KEY (avaliacao_usuario_idavaliacao_usuario, produto_idproduto)
+    PRIMARY KEY (avaliacao_usuario_idavaliacao_usuario, produto_idproduto),
+    FOREIGN KEY (avaliacao_usuario_idavaliacao_usuario)
+        REFERENCES avaliacao_usuario (idavaliacao_usuario),
+    FOREIGN KEY (produto_idproduto)
+        REFERENCES produto (idproduto)
 );
 
+-- =========================================
 -- Tabela: carrinho
+-- =========================================
 CREATE TABLE IF NOT EXISTS carrinho (
     idcarrinho INTEGER NOT NULL,
     status INTEGER NOT NULL,
     usuario_idusuario INTEGER NOT NULL,
-    PRIMARY KEY (idcarrinho)
+    PRIMARY KEY (idcarrinho),
+    FOREIGN KEY (usuario_idusuario)
+        REFERENCES usuario (idusuario)
 );
 
+-- =========================================
 -- Tabela: carrinho_item
+-- =========================================
 CREATE TABLE IF NOT EXISTS carrinho_item (
     idcarrinho_item INTEGER NOT NULL,
     quantidade INTEGER NOT NULL,
     produto_idproduto INTEGER NOT NULL,
     usuario_idusuario INTEGER NOT NULL,
     carrinho_idcarrinho INTEGER NOT NULL,
-    PRIMARY KEY (idcarrinho_item, produto_idproduto, carrinho_idcarrinho)
+    PRIMARY KEY (idcarrinho_item),
+    FOREIGN KEY (produto_idproduto)
+        REFERENCES produto (idproduto),
+    FOREIGN KEY (usuario_idusuario)
+        REFERENCES usuario (idusuario),
+    FOREIGN KEY (carrinho_idcarrinho)
+        REFERENCES carrinho (idcarrinho)
 );
 
+-- =========================================
 -- Tabela: pedido
+-- =========================================
 CREATE TABLE IF NOT EXISTS pedido (
     idpedido INTEGER NOT NULL,
     data_pedido DATE NOT NULL,
@@ -113,16 +174,27 @@ CREATE TABLE IF NOT EXISTS pedido (
     usuario_idusuario INTEGER NOT NULL,
     endereco_idendereco INTEGER NOT NULL,
     cartoes_idcartoes INTEGER NOT NULL,
-    PRIMARY KEY (idpedido)
+    PRIMARY KEY (idpedido),
+    FOREIGN KEY (usuario_idusuario)
+        REFERENCES usuario (idusuario),
+    FOREIGN KEY (endereco_idendereco)
+        REFERENCES endereco (idendereco),
+    FOREIGN KEY (cartoes_idcartoes)
+        REFERENCES cartoes (idcartoes)
 );
 
+-- =========================================
 -- Tabela: pedido_item
+-- =========================================
 CREATE TABLE IF NOT EXISTS pedido_item (
     idpedido_item INTEGER NOT NULL,
     quantidade INTEGER NOT NULL,
     valor_unitario DECIMAL NOT NULL,
     produto_idproduto INTEGER NOT NULL,
     pedido_idpedido INTEGER NOT NULL,
-    PRIMARY KEY (idpedido_item)
+    PRIMARY KEY (idpedido_item),
+    FOREIGN KEY (produto_idproduto)
+        REFERENCES produto (idproduto),
+    FOREIGN KEY (pedido_idpedido)
+        REFERENCES pedido (idpedido)
 );
-
