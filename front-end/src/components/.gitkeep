@@ -1,0 +1,8 @@
+# Esta pasta contém os componentes reutilizáveis
+# Exemplo: Button.jsx, Card.jsx, Modal.jsx, etc.
+# 
+# Organize por funcionalidade:
+# - components/common/ (componentes genéricos)
+# - components/forms/ (componentes de formulário)
+# - components/layout/ (componentes de layout)
+

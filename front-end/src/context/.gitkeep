@@ -1,0 +1,5 @@
+# Esta pasta contém os Contexts do React
+# Exemplo: AuthContext.jsx, ThemeContext.jsx, etc.
+# 
+# Use Context API para gerenciar estado global
+
