@@ -1,30 +1,112 @@
 .home {
   padding: 2rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-gradient);
+  color: white;
+  text-align: center;
 }
 
 .home h1 {
   font-size: 3.2em;
   line-height: 1.1;
   margin-bottom: 1rem;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.home p {
+  font-size: 1.2em;
+  opacity: 0.95;
+  margin-bottom: 2rem;
+}
+
+.home-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btn-link {
+  padding: 0.875rem 2rem;
+  border-radius: var(--border-radius-md);
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  display: inline-block;
+  box-shadow: var(--shadow-md);
+}
+
+.btn-link:not(.btn-outline) {
+  background: white;
+  color: var(--primary-color);
+}
+
+.btn-link:not(.btn-outline):hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  text-decoration: none;
+}
+
+.btn-outline {
+  background: transparent;
+  color: white;
+  border: 2px solid white;
+}
+
+.btn-outline:hover {
+  background: white;
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.home-user-info {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius-lg);
+  backdrop-filter: blur(10px);
+}
+
+.home-user-info p {
+  margin-bottom: 1rem;
+  font-size: 1.1em;
 }
 
 .not-found {
   padding: 2rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .not-found h1 {
   font-size: 2.5em;
   margin-bottom: 1rem;
-  color: #ff4444;
+  color: var(--primary-color);
 }
 
 .not-found a {
-  color: #646cff;
+  color: var(--primary-color);
   text-decoration: none;
   font-weight: 500;
+  padding: 0.75rem 1.5rem;
+  border: 2px solid var(--primary-color);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+  display: inline-block;
 }
 
 .not-found a:hover {
-  color: #535bf2;
+  background-color: var(--primary-color);
+  color: white;
 }
 

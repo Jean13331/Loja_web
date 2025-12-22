@@ -1,0 +1,42 @@
+/* Variáveis de cores do tema */
+:root {
+  /* Cores principais - Laranja avermelhado */
+  --primary-color: #F7401B;
+  --primary-hover: #FF6B35;
+  --primary-light: rgba(247, 64, 27, 0.1);
+  --primary-dark: #D6300A;
+  --primary-gradient: linear-gradient(135deg, #F7401B 0%, #FF6B35 100%);
+  
+  /* Cores de suporte */
+  --success-color: #28a745;
+  --error-color: #dc3545;
+  --warning-color: #ffc107;
+  --info-color: #17a2b8;
+  
+  /* Cores neutras */
+  --text-primary: #213547;
+  --text-secondary: #666;
+  --text-light: #999;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --border-color: #e0e0e0;
+  
+  /* Espaçamentos */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  
+  /* Bordas */
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  
+  /* Sombras */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.1);
+  --shadow-primary: 0 5px 15px rgba(247, 64, 27, 0.3);
+}
+
