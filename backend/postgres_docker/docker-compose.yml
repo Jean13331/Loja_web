@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres_local
+    restart: always
+
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: app123
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      # Volume persistente para dados do PostgreSQL
+      - postgres_data:/var/lib/postgresql/data
+      # Monta a pasta init/ para executar scripts SQL na primeira inicialização
+      # Scripts em init/ são executados automaticamente quando o banco é criado pela primeira vez
+      - ./init:/docker-entrypoint-initdb.d
+
+volumes:
+  postgres_data:
