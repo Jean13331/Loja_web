@@ -30,3 +30,5 @@ console.log('  Senha hash:', hashPassword(testPassword));
 
 console.log('\n✅ Teste concluído!');
 
+
+
