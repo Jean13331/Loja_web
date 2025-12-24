@@ -9,6 +9,13 @@ const authService = {
   },
 
   /**
+   * Realiza login de administrador
+   */
+  async adminLogin(email, senha) {
+    return await api.post('/auth/admin/login', { email, senha })
+  },
+
+  /**
    * Registra um novo usuário
    */
   async register(userData) {

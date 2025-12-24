@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS usuario (
     cpf VARCHAR(32) NOT NULL UNIQUE,
     nascimento DATE NOT NULL,
     admin SMALLINT NOT NULL DEFAULT 0,
+    data_cadastro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    data_admin TIMESTAMP NULL,
     PRIMARY KEY (idusuario)
 );
 
@@ -218,6 +220,55 @@ CREATE TABLE IF NOT EXISTS pedido_item (
     FOREIGN KEY (pedido_idpedido)
         REFERENCES pedido (idpedido)
         ON DELETE CASCADE
+);
+
+-- =========================================
+-- Tabela: categoria
+-- =========================================
+CREATE TABLE IF NOT EXISTS categoria (
+    idcategoria SERIAL NOT NULL,
+    nome VARCHAR(100) NOT NULL UNIQUE,
+    descricao VARCHAR(500) NULL,
+    data_criacao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (idcategoria)
+);
+
+-- =========================================
+-- Tabela: produto_has_categoria (N:N)
+-- =========================================
+CREATE TABLE IF NOT EXISTS produto_has_categoria (
+    produto_idproduto INTEGER NOT NULL,
+    categoria_idcategoria INTEGER NOT NULL,
+    PRIMARY KEY (produto_idproduto, categoria_idcategoria),
+    CONSTRAINT fk_produto_has_categoria_produto
+        FOREIGN KEY (produto_idproduto)
+        REFERENCES produto (idproduto)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_produto_has_categoria_categoria
+        FOREIGN KEY (categoria_idcategoria)
+        REFERENCES categoria (idcategoria)
+        ON DELETE CASCADE
+);
+
+-- =========================================
+-- Tabela: destaque
+-- =========================================
+CREATE TABLE IF NOT EXISTS destaque (
+    iddestaque SERIAL NOT NULL,
+    produto_idproduto INTEGER NOT NULL UNIQUE,
+    desconto_percentual DECIMAL(5,2) NOT NULL DEFAULT 0,
+    valor_com_desconto DECIMAL(10,2) NULL,
+    data_inicio TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    data_fim TIMESTAMP NULL,
+    ativo SMALLINT NOT NULL DEFAULT 1,
+    ordem INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (iddestaque),
+    CONSTRAINT fk_destaque_produto
+        FOREIGN KEY (produto_idproduto)
+        REFERENCES produto (idproduto)
+        ON DELETE CASCADE,
+    CONSTRAINT chk_desconto_valido
+        CHECK (desconto_percentual >= 0 AND desconto_percentual <= 100)
 );
 
 -- Mensagem de confirmação

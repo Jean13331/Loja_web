@@ -33,6 +33,7 @@ class AuthService:
         hashed_password = Usuario.hash_password(user_data['senha'])
         
         # Criar usuário
+        from django.utils import timezone
         user = Usuario(
             nome=user_data['nome'],
             email=user_data['email'],
@@ -41,8 +42,14 @@ class AuthService:
             cpf=hashed_cpf,
             nascimento=user_data['nascimento'],
             admin=user_data.get('admin', 0),
+            data_cadastro=timezone.now(),
         )
         user.save()
+        
+        # Se for admin, definir data_admin
+        if user.admin == 1:
+            user.data_admin = timezone.now()
+            user.save()
         
         # Gerar token
         token = AuthService.generate_token(user)

@@ -1,5 +1,0 @@
-# Esta pasta contém a lógica de negócio
-# Exemplo: userService.js, productService.js, orderService.js, etc.
-# 
-# Os services contêm a lógica de negócio complexa e podem usar múltiplos models
-

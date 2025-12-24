@@ -1,8 +1,0 @@
-# Esta pasta contém os controllers
-# Exemplo: userController.js, productController.js, orderController.js, etc.
-# 
-# Os controllers devem ser simples e apenas:
-# - Receber requisições
-# - Chamar services
-# - Retornar respostas
-

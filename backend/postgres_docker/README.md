@@ -8,8 +8,12 @@ Este diretório contém a configuração do PostgreSQL usando Docker Compose.
 postgres_docker/
 ├── docker-compose.yml    # Configuração do container PostgreSQL
 ├── init/                 # Scripts SQL executados na primeira inicialização
+│   ├── 00-verificar-e-corrigir.sql  # Verifica e corrige estrutura (executado primeiro)
 │   ├── 01-init.sql      # Criação das tabelas (estrutura)
-│   └── 02-seed-data.sql # Dados iniciais (será executado após 01-init.sql)
+│   ├── 02-seed-data.sql # Dados iniciais (será executado após 01-init.sql)
+│   ├── 03-migrate-usuario-dates.sql  # Migração de campos de data
+│   ├── 04-create-produto-historico.sql  # Tabela de histórico
+│   └── 05-create-categoria-produto-destaque.sql  # Tabelas de categoria e destaque
 └── data/                # Dados do banco (volume Docker - não commitado)
 ```
 
@@ -24,8 +28,13 @@ docker-compose up -d
 
 Isso irá:
 - Criar o container PostgreSQL
-- Executar `01-init.sql` (cria as tabelas)
-- Executar `02-seed-data.sql` (insere dados iniciais, se existirem)
+- Executar scripts em ordem alfabética:
+  - `00-verificar-e-corrigir.sql` (verifica e corrige estrutura, garante campos de data)
+  - `01-init.sql` (cria as tabelas principais)
+  - `02-seed-data.sql` (insere dados iniciais, se existirem)
+  - `03-migrate-usuario-dates.sql` (adiciona campos de data ao usuario)
+  - `04-create-produto-historico.sql` (cria tabela de histórico)
+  - `05-create-categoria-produto-destaque.sql` (cria tabelas de categoria e destaque)
 
 ### 2. Parar o banco de dados
 
@@ -86,3 +95,8 @@ Isso irá:
 - Se você já tem um banco rodando, os scripts não serão executados novamente
 - Para forçar a execução novamente, remova o volume: `docker-compose down -v`
 - O arquivo `02-seed-data.sql` é commitado no Git, então os dados estarão disponíveis para todos
+- O script `00-verificar-e-corrigir.sql` é idempotente e pode ser executado manualmente se necessário:
+  ```bash
+  type init\00-verificar-e-corrigir.sql | docker exec -i postgres_local psql -U appuser -d appdb
+  ```
+  Ou use o script batch: `executar-correcao.bat`

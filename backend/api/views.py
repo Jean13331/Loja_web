@@ -54,6 +54,48 @@ def login(request):
         return format_response('error', str(e), None, status.HTTP_401_UNAUTHORIZED)
 
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def admin_login(request):
+    """Autentica um administrador - apenas usuários com admin = 1 podem fazer login"""
+    serializer = LoginSerializer(data=request.data)
+    if not serializer.is_valid():
+        return format_response('error', 'Email e senha são obrigatórios', None, status.HTTP_400_BAD_REQUEST)
+    
+    email = serializer.validated_data['email']
+    senha = serializer.validated_data['senha']
+    
+    try:
+        # Primeiro, buscar o usuário para verificar se é admin ANTES de autenticar
+        from .models import Usuario
+        
+        try:
+            user = Usuario.objects.get(email=email)
+        except Usuario.DoesNotExist:
+            return format_response('error', 'Email ou senha inválidos', None, status.HTTP_401_UNAUTHORIZED)
+        
+        # Verificar se o usuário é admin (admin = 1 no banco)
+        if user.admin != 1:
+            return format_response('error', 'Acesso negado. Apenas administradores podem acessar esta área.', None, status.HTTP_403_FORBIDDEN)
+        
+        # Verificar senha
+        if not user.compare_password(senha):
+            return format_response('error', 'Email ou senha inválidos', None, status.HTTP_401_UNAUTHORIZED)
+        
+        # Se o usuário é admin mas não tem data_admin, definir agora
+        if user.admin == 1 and not user.data_admin:
+            from django.utils import timezone
+            user.data_admin = timezone.now()
+            user.save()
+        
+        # Se chegou aqui, é admin e senha está correta - fazer login
+        result = AuthService.login(email, senha)
+        
+        return format_response('success', 'Login de administrador realizado com sucesso', result, status.HTTP_200_OK)
+    except ValueError as e:
+        return format_response('error', str(e), None, status.HTTP_401_UNAUTHORIZED)
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def verify_token(request):
