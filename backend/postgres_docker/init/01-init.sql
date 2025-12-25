@@ -1,28 +1,24 @@
--- Script de inicialização do banco de dados
--- Este script é executado automaticamente quando o container PostgreSQL é criado pela primeira vez
-
 -- =========================================
--- Tabela: produto
+-- PRODUTO
 -- =========================================
 CREATE TABLE IF NOT EXISTS produto (
-    idproduto SERIAL NOT NULL,
-    nome VARCHAR(45) NOT NULL,
+    idproduto SERIAL PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
     descricao VARCHAR(5000) NOT NULL,
-    valor DECIMAL NOT NULL,
+    valor DECIMAL(10,2) NOT NULL,
     estoque INTEGER NOT NULL,
-    media_avaliacao DECIMAL NOT NULL DEFAULT 0,
-    PRIMARY KEY (idproduto)
+    media_avaliacao DECIMAL(2,1) DEFAULT 0,
+    ativo BOOLEAN DEFAULT TRUE
 );
 
 -- =========================================
--- Tabela: produto_imagem (N imagens por produto)
+-- IMAGENS DO PRODUTO
 -- =========================================
 CREATE TABLE IF NOT EXISTS produto_imagem (
-    idproduto_imagem SERIAL NOT NULL,
+    idproduto_imagem SERIAL PRIMARY KEY,
     produto_idproduto INTEGER NOT NULL,
     imagem BYTEA NOT NULL,
     ordem INTEGER,
-    PRIMARY KEY (idproduto_imagem),
     CONSTRAINT fk_produto_imagem_produto
         FOREIGN KEY (produto_idproduto)
         REFERENCES produto (idproduto)
@@ -30,77 +26,66 @@ CREATE TABLE IF NOT EXISTS produto_imagem (
 );
 
 -- =========================================
--- Tabela: usuario
+-- USUÁRIO
 -- =========================================
 CREATE TABLE IF NOT EXISTS usuario (
-    idusuario SERIAL NOT NULL,
-    nome VARCHAR(45) NOT NULL,
+    idusuario SERIAL PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
     numero_telefone VARCHAR(32) NOT NULL,
     senha VARCHAR(100) NOT NULL,
     cpf VARCHAR(32) NOT NULL UNIQUE,
     nascimento DATE NOT NULL,
-    admin SMALLINT NOT NULL DEFAULT 0,
-    data_cadastro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    data_admin TIMESTAMP NULL,
-    PRIMARY KEY (idusuario)
+    admin BOOLEAN DEFAULT FALSE,
+    ativo BOOLEAN DEFAULT TRUE,
+    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    data_admin TIMESTAMP
 );
 
 -- =========================================
--- Tabela: cartoes
+-- CARTÕES
 -- =========================================
 CREATE TABLE IF NOT EXISTS cartoes (
-    idcartoes SERIAL NOT NULL,
-    nome VARCHAR(45) NOT NULL,
-    numero INTEGER NOT NULL,
+    idcartoes SERIAL PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    numero BIGINT NOT NULL,
     cvv INTEGER NOT NULL,
     vencimento DATE NOT NULL,
+    ativo BOOLEAN DEFAULT TRUE,
     usuario_idusuario INTEGER NOT NULL,
-    PRIMARY KEY (idcartoes),
     FOREIGN KEY (usuario_idusuario)
         REFERENCES usuario (idusuario)
         ON DELETE CASCADE
 );
 
 -- =========================================
--- Tabela: endereco
+-- ENDEREÇO
 -- =========================================
 CREATE TABLE IF NOT EXISTS endereco (
-    idendereco SERIAL NOT NULL,
+    idendereco SERIAL PRIMARY KEY,
     estado VARCHAR(45) NOT NULL,
     cidade VARCHAR(45) NOT NULL,
     bairro VARCHAR(45) NOT NULL,
-    rua VARCHAR(45),
+    rua VARCHAR(100),
     numero INTEGER,
     complemento VARCHAR(255),
+    ativo BOOLEAN DEFAULT TRUE,
     usuario_idusuario INTEGER NOT NULL,
-    PRIMARY KEY (idendereco),
     FOREIGN KEY (usuario_idusuario)
         REFERENCES usuario (idusuario)
         ON DELETE CASCADE
 );
 
 -- =========================================
--- Tabela: produto_favorito
+-- FAVORITOS
 -- =========================================
 CREATE TABLE IF NOT EXISTS produto_favorito (
-    idproduto_favorito SERIAL NOT NULL,
     usuario_idusuario INTEGER NOT NULL,
-    PRIMARY KEY (idproduto_favorito),
+    produto_idproduto INTEGER NOT NULL,
+    data_favorito TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (usuario_idusuario, produto_idproduto),
     FOREIGN KEY (usuario_idusuario)
         REFERENCES usuario (idusuario)
-        ON DELETE CASCADE
-);
-
--- =========================================
--- Tabela: produto_favorito_has_produto
--- =========================================
-CREATE TABLE IF NOT EXISTS produto_favorito_has_produto (
-    produto_favorito_idproduto_favorito INTEGER NOT NULL,
-    produto_idproduto INTEGER NOT NULL,
-    PRIMARY KEY (produto_favorito_idproduto_favorito, produto_idproduto),
-    FOREIGN KEY (produto_favorito_idproduto_favorito)
-        REFERENCES produto_favorito (idproduto_favorito)
         ON DELETE CASCADE,
     FOREIGN KEY (produto_idproduto)
         REFERENCES produto (idproduto)
@@ -108,39 +93,44 @@ CREATE TABLE IF NOT EXISTS produto_favorito_has_produto (
 );
 
 -- =========================================
--- Tabela: avaliacao_usuario
+-- CATEGORIA
 -- =========================================
-CREATE TABLE IF NOT EXISTS avaliacao_usuario (
-    idavaliacao_usuario SERIAL NOT NULL,
-    descricao_avaliacao VARCHAR(5000) NOT NULL,
-    avaliacao_nota DECIMAL(2,1) NOT NULL,
-    PRIMARY KEY (idavaliacao_usuario)
+CREATE TABLE IF NOT EXISTS categoria (
+    idcategoria SERIAL PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL UNIQUE,
+    descricao VARCHAR(500),
+    icone VARCHAR(10) DEFAULT '📦'
+    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- =========================================
--- Tabela: avaliacao_usuario_has_usuario
+-- PRODUTO x CATEGORIA
 -- =========================================
-CREATE TABLE IF NOT EXISTS avaliacao_usuario_has_usuario (
-    avaliacao_usuario_idavaliacao_usuario INTEGER NOT NULL,
-    usuario_idusuario INTEGER NOT NULL,
-    PRIMARY KEY (avaliacao_usuario_idavaliacao_usuario, usuario_idusuario),
-    FOREIGN KEY (avaliacao_usuario_idavaliacao_usuario)
-        REFERENCES avaliacao_usuario (idavaliacao_usuario)
+CREATE TABLE IF NOT EXISTS produto_has_categoria (
+    produto_idproduto INTEGER NOT NULL,
+    categoria_idcategoria INTEGER NOT NULL,
+    PRIMARY KEY (produto_idproduto, categoria_idcategoria),
+    FOREIGN KEY (produto_idproduto)
+        REFERENCES produto (idproduto)
         ON DELETE CASCADE,
-    FOREIGN KEY (usuario_idusuario)
-        REFERENCES usuario (idusuario)
+    FOREIGN KEY (categoria_idcategoria)
+        REFERENCES categoria (idcategoria)
         ON DELETE CASCADE
 );
 
 -- =========================================
--- Tabela: avaliacao_usuario_has_produto
+-- AVALIAÇÃO
 -- =========================================
-CREATE TABLE IF NOT EXISTS avaliacao_usuario_has_produto (
-    avaliacao_usuario_idavaliacao_usuario INTEGER NOT NULL,
+CREATE TABLE IF NOT EXISTS avaliacao (
+    idavaliacao SERIAL PRIMARY KEY,
+    usuario_idusuario INTEGER NOT NULL,
     produto_idproduto INTEGER NOT NULL,
-    PRIMARY KEY (avaliacao_usuario_idavaliacao_usuario, produto_idproduto),
-    FOREIGN KEY (avaliacao_usuario_idavaliacao_usuario)
-        REFERENCES avaliacao_usuario (idavaliacao_usuario)
+    nota DECIMAL(2,1) NOT NULL CHECK (nota BETWEEN 0 AND 5),
+    comentario VARCHAR(5000),
+    data_avaliacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (usuario_idusuario, produto_idproduto),
+    FOREIGN KEY (usuario_idusuario)
+        REFERENCES usuario (idusuario)
         ON DELETE CASCADE,
     FOREIGN KEY (produto_idproduto)
         REFERENCES produto (idproduto)
@@ -148,33 +138,27 @@ CREATE TABLE IF NOT EXISTS avaliacao_usuario_has_produto (
 );
 
 -- =========================================
--- Tabela: carrinho
+-- CARRINHO
 -- =========================================
 CREATE TABLE IF NOT EXISTS carrinho (
-    idcarrinho SERIAL NOT NULL,
-    status INTEGER NOT NULL DEFAULT 0,
+    idcarrinho SERIAL PRIMARY KEY,
+    status INTEGER DEFAULT 0,
     usuario_idusuario INTEGER NOT NULL,
-    PRIMARY KEY (idcarrinho),
     FOREIGN KEY (usuario_idusuario)
         REFERENCES usuario (idusuario)
         ON DELETE CASCADE
 );
 
 -- =========================================
--- Tabela: carrinho_item
+-- ITENS DO CARRINHO
 -- =========================================
 CREATE TABLE IF NOT EXISTS carrinho_item (
-    idcarrinho_item SERIAL NOT NULL,
-    quantidade INTEGER NOT NULL,
+    idcarrinho_item SERIAL PRIMARY KEY,
+    quantidade INTEGER NOT NULL CHECK (quantidade > 0),
     produto_idproduto INTEGER NOT NULL,
-    usuario_idusuario INTEGER NOT NULL,
     carrinho_idcarrinho INTEGER NOT NULL,
-    PRIMARY KEY (idcarrinho_item),
     FOREIGN KEY (produto_idproduto)
         REFERENCES produto (idproduto)
-        ON DELETE CASCADE,
-    FOREIGN KEY (usuario_idusuario)
-        REFERENCES usuario (idusuario)
         ON DELETE CASCADE,
     FOREIGN KEY (carrinho_idcarrinho)
         REFERENCES carrinho (idcarrinho)
@@ -182,98 +166,58 @@ CREATE TABLE IF NOT EXISTS carrinho_item (
 );
 
 -- =========================================
--- Tabela: pedido
+-- PEDIDO
 -- =========================================
 CREATE TABLE IF NOT EXISTS pedido (
-    idpedido SERIAL NOT NULL,
-    data_pedido DATE NOT NULL DEFAULT CURRENT_DATE,
-    status INTEGER NOT NULL DEFAULT 0,
-    total DECIMAL NOT NULL,
+    idpedido SERIAL PRIMARY KEY,
+    data_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status INTEGER DEFAULT 0,
+    total DECIMAL(10,2) NOT NULL,
     usuario_idusuario INTEGER NOT NULL,
     endereco_idendereco INTEGER NOT NULL,
     cartoes_idcartoes INTEGER NOT NULL,
-    PRIMARY KEY (idpedido),
     FOREIGN KEY (usuario_idusuario)
-        REFERENCES usuario (idusuario)
-        ON DELETE CASCADE,
+        REFERENCES usuario (idusuario),
     FOREIGN KEY (endereco_idendereco)
-        REFERENCES endereco (idendereco)
-        ON DELETE CASCADE,
+        REFERENCES endereco (idendereco),
     FOREIGN KEY (cartoes_idcartoes)
         REFERENCES cartoes (idcartoes)
-        ON DELETE CASCADE
 );
 
 -- =========================================
--- Tabela: pedido_item
+-- ITENS DO PEDIDO
 -- =========================================
 CREATE TABLE IF NOT EXISTS pedido_item (
-    idpedido_item SERIAL NOT NULL,
-    quantidade INTEGER NOT NULL,
-    valor_unitario DECIMAL NOT NULL,
+    idpedido_item SERIAL PRIMARY KEY,
+    quantidade INTEGER NOT NULL CHECK (quantidade > 0),
+    valor_unitario DECIMAL(10,2) NOT NULL,
     produto_idproduto INTEGER NOT NULL,
     pedido_idpedido INTEGER NOT NULL,
-    PRIMARY KEY (idpedido_item),
     FOREIGN KEY (produto_idproduto)
-        REFERENCES produto (idproduto)
-        ON DELETE CASCADE,
+        REFERENCES produto (idproduto),
     FOREIGN KEY (pedido_idpedido)
         REFERENCES pedido (idpedido)
         ON DELETE CASCADE
 );
 
 -- =========================================
--- Tabela: categoria
+-- DESTAQUE
 -- =========================================
-CREATE TABLE IF NOT EXISTS categoria (
-    idcategoria SERIAL NOT NULL,
-    nome VARCHAR(100) NOT NULL UNIQUE,
-    descricao VARCHAR(500) NULL,
-    data_criacao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (idcategoria)
-);
-
--- =========================================
--- Tabela: produto_has_categoria (N:N)
--- =========================================
-CREATE TABLE IF NOT EXISTS produto_has_categoria (
-    produto_idproduto INTEGER NOT NULL,
-    categoria_idcategoria INTEGER NOT NULL,
-    PRIMARY KEY (produto_idproduto, categoria_idcategoria),
-    CONSTRAINT fk_produto_has_categoria_produto
-        FOREIGN KEY (produto_idproduto)
+CREATE TABLE IF NOT EXISTS destaque (
+    iddestaque SERIAL PRIMARY KEY,
+    produto_idproduto INTEGER NOT NULL UNIQUE,
+    desconto_percentual DECIMAL(5,2) DEFAULT 0 CHECK (desconto_percentual BETWEEN 0 AND 100),
+    valor_com_desconto DECIMAL(10,2),
+    data_inicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    data_fim TIMESTAMP,
+    ativo BOOLEAN DEFAULT TRUE,
+    ordem INTEGER DEFAULT 0,
+    FOREIGN KEY (produto_idproduto)
         REFERENCES produto (idproduto)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_produto_has_categoria_categoria
-        FOREIGN KEY (categoria_idcategoria)
-        REFERENCES categoria (idcategoria)
         ON DELETE CASCADE
 );
 
--- =========================================
--- Tabela: destaque
--- =========================================
-CREATE TABLE IF NOT EXISTS destaque (
-    iddestaque SERIAL NOT NULL,
-    produto_idproduto INTEGER NOT NULL UNIQUE,
-    desconto_percentual DECIMAL(5,2) NOT NULL DEFAULT 0,
-    valor_com_desconto DECIMAL(10,2) NULL,
-    data_inicio TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    data_fim TIMESTAMP NULL,
-    ativo SMALLINT NOT NULL DEFAULT 1,
-    ordem INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (iddestaque),
-    CONSTRAINT fk_destaque_produto
-        FOREIGN KEY (produto_idproduto)
-        REFERENCES produto (idproduto)
-        ON DELETE CASCADE,
-    CONSTRAINT chk_desconto_valido
-        CHECK (desconto_percentual >= 0 AND desconto_percentual <= 100)
-);
-
--- Mensagem de confirmação
 DO $$
 BEGIN
-    RAISE NOTICE 'Tabelas criadas com sucesso!';
+    RAISE NOTICE 'Script executado sem conflitos de tabelas!';
 END $$;
-

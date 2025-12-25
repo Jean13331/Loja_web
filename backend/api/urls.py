@@ -20,6 +20,7 @@ urlpatterns = [
     path('produtos/<int:produto_id>/deletar', views_produto.deletar_produto, name='deletar_produto'),
     path('produtos/destaques', views_produto.listar_destaques, name='listar_destaques'),
     path('categorias', views_produto.listar_categorias, name='listar_categorias'),
+    path('categorias/cadastrar', views_produto.cadastrar_categoria, name='cadastrar_categoria'),
     
     # Health check
     path('health', views.health_check, name='health'),

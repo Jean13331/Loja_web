@@ -12,13 +12,36 @@ class Usuario(models.Model):
     senha = models.CharField(max_length=100)  # MD5 hash
     cpf = models.CharField(max_length=32, unique=True)  # MD5 hash
     nascimento = models.DateField()
-    admin = models.SmallIntegerField(default=0)
-    data_cadastro = models.DateTimeField(auto_now_add=True)
+    admin = models.BooleanField(default=False)  # BOOLEAN no banco
+    ativo = models.BooleanField(default=True)  # BOOLEAN no banco
+    data_cadastro = models.DateTimeField(null=True, blank=True)
     data_admin = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'usuario'
         managed = False  # Não criar/migrar tabela, já existe no banco
+
+    def save(self, *args, **kwargs):
+        """Sobrescreve save para definir data_admin quando usuário vira admin"""
+        # Se o usuário já existe no banco (tem idusuario)
+        if self.idusuario:
+            try:
+                # Buscar o estado anterior do banco
+                old_user = Usuario.objects.get(idusuario=self.idusuario)
+                # Se mudou de não-admin para admin, definir data_admin
+                if not old_user.admin and self.admin and not self.data_admin:
+                    from django.utils import timezone
+                    self.data_admin = timezone.now()
+            except Usuario.DoesNotExist:
+                # Se não existe, é um novo usuário
+                pass
+        
+        # Se é um novo usuário e já é admin, definir data_admin
+        if not self.idusuario and self.admin and not self.data_admin:
+            from django.utils import timezone
+            self.data_admin = timezone.now()
+        
+        super().save(*args, **kwargs)
 
     @staticmethod
     def hash_value(value):
@@ -114,6 +137,7 @@ class Categoria(models.Model):
     idcategoria = models.AutoField(primary_key=True)
     nome = models.CharField(max_length=100, unique=True)
     descricao = models.CharField(max_length=500, null=True, blank=True)
+    icone = models.CharField(max_length=10, null=True, blank=True, default='📦')
     data_criacao = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -126,6 +150,7 @@ class Categoria(models.Model):
             'idcategoria': self.idcategoria,
             'nome': self.nome,
             'descricao': self.descricao,
+            'icone': self.icone or '📦',
             'data_criacao': self.data_criacao.isoformat() if self.data_criacao else None,
         }
 

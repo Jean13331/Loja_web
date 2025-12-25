@@ -61,6 +61,7 @@ class CategoriaSerializer(serializers.Serializer):
     idcategoria = serializers.IntegerField(read_only=True)
     nome = serializers.CharField(max_length=100)
     descricao = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    icone = serializers.CharField(max_length=10, required=False, allow_blank=True, default='📦')
     data_criacao = serializers.DateTimeField(read_only=True)
 
 

@@ -75,6 +75,7 @@ def listar_produtos(request):
 def listar_destaques(request):
     """Lista produtos em destaque (ativos e dentro do prazo)"""
     try:
+        import base64
         # Buscar destaques ativos usando SQL direto (já que managed=False)
         with connection.cursor() as cursor:
             agora = timezone.now()
@@ -84,7 +85,7 @@ def listar_destaques(request):
                        p.idproduto, p.nome, p.descricao, p.valor, p.estoque, p.media_avaliacao
                 FROM destaque d
                 INNER JOIN produto p ON d.produto_idproduto = p.idproduto
-                WHERE d.ativo = 1
+                WHERE d.ativo = TRUE
                   AND d.data_inicio <= %s
                   AND (d.data_fim IS NULL OR d.data_fim >= %s)
                 ORDER BY d.ordem, d.iddestaque
@@ -92,32 +93,56 @@ def listar_destaques(request):
             
             rows = cursor.fetchall()
             
-        resultado = []
-        for row in rows:
-            iddestaque, produto_id, desconto, valor_desconto, ordem, idproduto, nome, descricao, valor, estoque, media = row
-            
-            valor_original = float(valor)
-            desconto_float = float(desconto)
-            valor_com_desconto = valor_original * (1 - desconto_float / 100)
-            
-            resultado.append({
-                'idproduto': idproduto,
-                'nome': nome,
-                'descricao': descricao,
-                'valor': valor_original,
-                'estoque': estoque,
-                'media_avaliacao': float(media),
-                'destaque': {
-                    'iddestaque': iddestaque,
-                    'desconto_percentual': desconto_float,
-                    'valor_original': valor_original,
-                    'valor_com_desconto': valor_com_desconto,
-                    'ordem': ordem,
-                }
-            })
+            resultado = []
+            for row in rows:
+                iddestaque, produto_id, desconto, valor_desconto, ordem, idproduto, nome, descricao, valor, estoque, media = row
+                
+                valor_original = float(valor)
+                desconto_float = float(desconto)
+                valor_com_desconto = valor_original * (1 - desconto_float / 100)
+                
+                # Buscar primeira imagem do produto
+                cursor.execute("""
+                    SELECT imagem 
+                    FROM produto_imagem 
+                    WHERE produto_idproduto = %s AND ordem = 1
+                    LIMIT 1
+                """, [idproduto])
+                
+                imagem_row = cursor.fetchone()
+                imagem_principal = None
+                if imagem_row and imagem_row[0]:
+                    imagem_data = imagem_row[0]
+                    if isinstance(imagem_data, memoryview):
+                        imagem_bytes = imagem_data.tobytes()
+                    elif isinstance(imagem_data, bytes):
+                        imagem_bytes = imagem_data
+                    else:
+                        imagem_bytes = bytes(imagem_data)
+                    imagem_base64 = base64.b64encode(imagem_bytes).decode('utf-8')
+                    imagem_principal = f"data:image/jpeg;base64,{imagem_base64}"
+                
+                resultado.append({
+                    'idproduto': idproduto,
+                    'nome': nome,
+                    'descricao': descricao,
+                    'valor': valor_original,
+                    'estoque': estoque,
+                    'media_avaliacao': float(media),
+                    'imagem_principal': imagem_principal,
+                    'destaque': {
+                        'iddestaque': iddestaque,
+                        'desconto_percentual': desconto_float,
+                        'valor_original': valor_original,
+                        'valor_com_desconto': valor_com_desconto,
+                        'ordem': ordem,
+                    }
+                })
         
         return format_response('success', 'Destaques listados com sucesso', resultado, status.HTTP_200_OK)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return format_response('error', str(e), None, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -131,6 +156,72 @@ def listar_categorias(request):
         return format_response('success', 'Categorias listadas com sucesso', serializer.data, status.HTTP_200_OK)
     except Exception as e:
         return format_response('error', str(e), None, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def cadastrar_categoria(request):
+    """Cadastra uma nova categoria (apenas admin)"""
+    try:
+        # Verificar se o usuário é admin
+        user_id = None
+        if hasattr(request.user, 'idusuario'):
+            user_id = request.user.idusuario
+            user = request.user
+        else:
+            # Tentar extrair do token
+            auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+            if auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
+                try:
+                    decoded = UntypedToken(token)
+                    user_id = decoded.get('id')
+                    user = Usuario.objects.get(idusuario=user_id)
+                except Exception:
+                    return format_response('error', 'Token inválido', None, status.HTTP_401_UNAUTHORIZED)
+            else:
+                return format_response('error', 'Token não fornecido', None, status.HTTP_401_UNAUTHORIZED)
+        
+        # Verificar se é admin
+        if not (user.admin == 1 or user.admin is True):
+            return format_response('error', 'Acesso negado. Apenas administradores podem cadastrar categorias.', None, status.HTTP_403_FORBIDDEN)
+        
+        # Validar dados da categoria
+        nome = request.data.get('nome', '').strip()
+        descricao = request.data.get('descricao', '').strip()
+        icone = request.data.get('icone', '').strip() or '📦'
+        
+        if not nome:
+            return format_response('error', 'O nome da categoria é obrigatório', None, status.HTTP_400_BAD_REQUEST)
+        
+        # Verificar se já existe categoria com esse nome
+        if Categoria.objects.filter(nome__iexact=nome).exists():
+            return format_response('error', 'Já existe uma categoria com esse nome', None, status.HTTP_400_BAD_REQUEST)
+        
+        # Validar ícone (deve ser um emoji, máximo 10 caracteres)
+        if len(icone) > 10:
+            return format_response('error', 'O ícone deve ter no máximo 10 caracteres', None, status.HTTP_400_BAD_REQUEST)
+        
+        # Criar categoria usando SQL direto (já que managed=False)
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO categoria (nome, descricao, icone)
+                VALUES (%s, %s, %s)
+                RETURNING idcategoria
+            """, [nome, descricao or None, icone])
+            
+            categoria_id = cursor.fetchone()[0]
+        
+        # Buscar categoria criada para retornar
+        categoria = Categoria.objects.get(idcategoria=categoria_id)
+        serializer = CategoriaSerializer(categoria)
+        
+        return format_response('success', 'Categoria cadastrada com sucesso', serializer.data, status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return format_response('error', f'Erro ao cadastrar categoria: {str(e)}', None, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
@@ -167,6 +258,13 @@ def cadastrar_produto(request):
         valor = request.data.get('valor')
         estoque = request.data.get('estoque')
         imagens = request.FILES.getlist('imagens')  # Múltiplas imagens
+        categorias = request.data.getlist('categorias')  # IDs das categorias (pode ser lista ou string)
+        
+        # Converter categorias para lista se for string única
+        if isinstance(categorias, str):
+            categorias = [categorias] if categorias else []
+        elif not categorias:
+            categorias = []
         
         if not nome:
             return format_response('error', 'O nome do produto é obrigatório', None, status.HTTP_400_BAD_REQUEST)
@@ -176,6 +274,17 @@ def cadastrar_produto(request):
             return format_response('error', 'O valor do produto é obrigatório', None, status.HTTP_400_BAD_REQUEST)
         if not estoque:
             return format_response('error', 'O estoque do produto é obrigatório', None, status.HTTP_400_BAD_REQUEST)
+        
+        # Validar categorias se fornecidas
+        if categorias:
+            try:
+                categoria_ids = [int(cat_id) for cat_id in categorias if cat_id]
+                # Verificar se todas as categorias existem
+                categorias_existentes = Categoria.objects.filter(idcategoria__in=categoria_ids)
+                if categorias_existentes.count() != len(categoria_ids):
+                    return format_response('error', 'Uma ou mais categorias não foram encontradas', None, status.HTTP_400_BAD_REQUEST)
+            except (ValueError, TypeError):
+                return format_response('error', 'Os IDs das categorias devem ser números válidos', None, status.HTTP_400_BAD_REQUEST)
         
         try:
             valor_decimal = float(valor)
@@ -217,6 +326,16 @@ def cadastrar_produto(request):
                     INSERT INTO produto_imagem (produto_idproduto, imagem, ordem)
                     VALUES (%s, %s, %s)
                 """, [produto_id, imagem_bytes, ordem])
+            
+            # Inserir categorias do produto
+            if categorias:
+                categoria_ids = [int(cat_id) for cat_id in categorias if cat_id]
+                for categoria_id in categoria_ids:
+                    cursor.execute("""
+                        INSERT INTO produto_has_categoria (produto_idproduto, categoria_idcategoria)
+                        VALUES (%s, %s)
+                        ON CONFLICT DO NOTHING
+                    """, [produto_id, categoria_id])
         
         # Criar/atualizar destaque se solicitado
         is_destaque = request.data.get('is_destaque', 'false').lower() == 'true'
@@ -246,13 +365,13 @@ def cadastrar_produto(request):
                         if valor_com_desconto_float is not None:
                             cursor.execute("""
                                 UPDATE destaque 
-                                SET desconto_percentual = %s, valor_com_desconto = %s, ativo = 1, data_inicio = CURRENT_TIMESTAMP
+                                SET desconto_percentual = %s, valor_com_desconto = %s, ativo = TRUE, data_inicio = CURRENT_TIMESTAMP
                                 WHERE produto_idproduto = %s
                             """, [desconto_float, valor_com_desconto_float, produto_id])
                         else:
                             cursor.execute("""
                                 UPDATE destaque 
-                                SET desconto_percentual = %s, ativo = 1, data_inicio = CURRENT_TIMESTAMP
+                                SET desconto_percentual = %s, ativo = TRUE, data_inicio = CURRENT_TIMESTAMP
                                 WHERE produto_idproduto = %s
                             """, [desconto_float, produto_id])
                     else:
@@ -260,12 +379,12 @@ def cadastrar_produto(request):
                         if valor_com_desconto_float is not None:
                             cursor.execute("""
                                 INSERT INTO destaque (produto_idproduto, desconto_percentual, valor_com_desconto, ativo, ordem)
-                                VALUES (%s, %s, %s, 1, 0)
+                                VALUES (%s, %s, %s, TRUE, 0)
                             """, [produto_id, desconto_float, valor_com_desconto_float])
                         else:
                             cursor.execute("""
                                 INSERT INTO destaque (produto_idproduto, desconto_percentual, ativo, ordem)
-                                VALUES (%s, %s, 1, 0)
+                                VALUES (%s, %s, TRUE, 0)
                             """, [produto_id, desconto_float])
             except (ValueError, TypeError):
                 return format_response('error', 'O desconto e valor com desconto devem ser números válidos', None, status.HTTP_400_BAD_REQUEST)
@@ -288,8 +407,26 @@ def cadastrar_produto(request):
         # Buscar produto criado para retornar
         produto = Produto.objects.get(idproduto=produto_id)
         serializer = ProdutoSerializer(produto)
+        produto_data = serializer.data
         
-        return format_response('success', 'Produto cadastrado com sucesso', serializer.data, status.HTTP_201_CREATED)
+        # Buscar categorias do produto
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT c.idcategoria, c.nome, c.descricao
+                FROM categoria c
+                INNER JOIN produto_has_categoria phc ON c.idcategoria = phc.categoria_idcategoria
+                WHERE phc.produto_idproduto = %s
+            """, [produto_id])
+            categorias_produto = []
+            for row in cursor.fetchall():
+                categorias_produto.append({
+                    'idcategoria': row[0],
+                    'nome': row[1],
+                    'descricao': row[2],
+                })
+            produto_data['categorias'] = categorias_produto
+        
+        return format_response('success', 'Produto cadastrado com sucesso', produto_data, status.HTTP_201_CREATED)
         
     except Exception as e:
         import traceback
@@ -403,12 +540,29 @@ def obter_produto(request, produto_id):
             
             produto_data['imagens'] = imagens_base64
         
+        # Buscar categorias do produto
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT c.idcategoria, c.nome, c.descricao
+                FROM categoria c
+                INNER JOIN produto_has_categoria phc ON c.idcategoria = phc.categoria_idcategoria
+                WHERE phc.produto_idproduto = %s
+            """, [produto_id])
+            categorias_produto = []
+            for row in cursor.fetchall():
+                categorias_produto.append({
+                    'idcategoria': row[0],
+                    'nome': row[1],
+                    'descricao': row[2],
+                })
+            produto_data['categorias'] = categorias_produto
+        
         # Buscar dados de destaque se existir
         with connection.cursor() as cursor:
             cursor.execute("""
                 SELECT desconto_percentual, valor_com_desconto, ativo 
                 FROM destaque 
-                WHERE produto_idproduto = %s AND ativo = 1
+                WHERE produto_idproduto = %s AND ativo = TRUE
             """, [produto_id])
             
             destaque_row = cursor.fetchone()
@@ -477,6 +631,13 @@ def editar_produto(request, produto_id):
         estoque = request.data.get('estoque')
         imagens_novas = request.FILES.getlist('imagens')  # Novas imagens para adicionar
         imagens_remover = request.data.getlist('imagens_remover')  # IDs das imagens para remover
+        categorias = request.data.getlist('categorias')  # IDs das categorias
+        
+        # Converter categorias para lista se for string única
+        if isinstance(categorias, str):
+            categorias = [categorias] if categorias else []
+        elif not categorias:
+            categorias = []
         
         if not nome:
             return format_response('error', 'O nome do produto é obrigatório', None, status.HTTP_400_BAD_REQUEST)
@@ -486,6 +647,17 @@ def editar_produto(request, produto_id):
             return format_response('error', 'O valor do produto é obrigatório', None, status.HTTP_400_BAD_REQUEST)
         if not estoque:
             return format_response('error', 'O estoque do produto é obrigatório', None, status.HTTP_400_BAD_REQUEST)
+        
+        # Validar categorias se fornecidas
+        if categorias:
+            try:
+                categoria_ids = [int(cat_id) for cat_id in categorias if cat_id]
+                # Verificar se todas as categorias existem
+                categorias_existentes = Categoria.objects.filter(idcategoria__in=categoria_ids)
+                if categorias_existentes.count() != len(categoria_ids):
+                    return format_response('error', 'Uma ou mais categorias não foram encontradas', None, status.HTTP_400_BAD_REQUEST)
+            except (ValueError, TypeError):
+                return format_response('error', 'Os IDs das categorias devem ser números válidos', None, status.HTTP_400_BAD_REQUEST)
         
         try:
             valor_decimal = float(valor)
@@ -539,6 +711,21 @@ def editar_produto(request, produto_id):
                         VALUES (%s, %s, %s)
                     """, [produto_id, imagem_bytes, ordem])
             
+            # Atualizar categorias do produto
+            if categorias:
+                categoria_ids = [int(cat_id) for cat_id in categorias if cat_id]
+                # Remover todas as categorias existentes
+                cursor.execute("""
+                    DELETE FROM produto_has_categoria WHERE produto_idproduto = %s
+                """, [produto_id])
+                # Inserir novas categorias
+                for categoria_id in categoria_ids:
+                    cursor.execute("""
+                        INSERT INTO produto_has_categoria (produto_idproduto, categoria_idcategoria)
+                        VALUES (%s, %s)
+                        ON CONFLICT DO NOTHING
+                    """, [produto_id, categoria_id])
+            
             # Gerenciar destaque
             is_destaque = request.data.get('is_destaque', 'false').lower() == 'true'
             if is_destaque:
@@ -566,13 +753,13 @@ def editar_produto(request, produto_id):
                         if valor_com_desconto_float is not None:
                             cursor.execute("""
                                 UPDATE destaque 
-                                SET desconto_percentual = %s, valor_com_desconto = %s, ativo = 1, data_inicio = CURRENT_TIMESTAMP
+                                SET desconto_percentual = %s, valor_com_desconto = %s, ativo = TRUE, data_inicio = CURRENT_TIMESTAMP
                                 WHERE produto_idproduto = %s
                             """, [desconto_float, valor_com_desconto_float, produto_id])
                         else:
                             cursor.execute("""
                                 UPDATE destaque 
-                                SET desconto_percentual = %s, ativo = 1, data_inicio = CURRENT_TIMESTAMP
+                                SET desconto_percentual = %s, ativo = TRUE, data_inicio = CURRENT_TIMESTAMP
                                 WHERE produto_idproduto = %s
                             """, [desconto_float, produto_id])
                     else:
@@ -580,19 +767,19 @@ def editar_produto(request, produto_id):
                         if valor_com_desconto_float is not None:
                             cursor.execute("""
                                 INSERT INTO destaque (produto_idproduto, desconto_percentual, valor_com_desconto, ativo, ordem)
-                                VALUES (%s, %s, %s, 1, 0)
+                                VALUES (%s, %s, %s, TRUE, 0)
                             """, [produto_id, desconto_float, valor_com_desconto_float])
                         else:
                             cursor.execute("""
                                 INSERT INTO destaque (produto_idproduto, desconto_percentual, ativo, ordem)
-                                VALUES (%s, %s, 1, 0)
+                                VALUES (%s, %s, TRUE, 0)
                             """, [produto_id, desconto_float])
                 except (ValueError, TypeError):
                     return format_response('error', 'O desconto e valor com desconto devem ser números válidos', None, status.HTTP_400_BAD_REQUEST)
             else:
                 # Desativar destaque se existir
                 cursor.execute("""
-                    UPDATE destaque SET ativo = 0 WHERE produto_idproduto = %s
+                    UPDATE destaque SET ativo = FALSE WHERE produto_idproduto = %s
                 """, [produto_id])
         
         # Registrar no histórico
@@ -614,8 +801,26 @@ def editar_produto(request, produto_id):
         # Buscar produto atualizado para retornar
         produto = Produto.objects.get(idproduto=produto_id)
         serializer = ProdutoSerializer(produto)
+        produto_data = serializer.data
         
-        return format_response('success', 'Produto editado com sucesso', serializer.data, status.HTTP_200_OK)
+        # Buscar categorias do produto
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT c.idcategoria, c.nome, c.descricao
+                FROM categoria c
+                INNER JOIN produto_has_categoria phc ON c.idcategoria = phc.categoria_idcategoria
+                WHERE phc.produto_idproduto = %s
+            """, [produto_id])
+            categorias_produto = []
+            for row in cursor.fetchall():
+                categorias_produto.append({
+                    'idcategoria': row[0],
+                    'nome': row[1],
+                    'descricao': row[2],
+                })
+            produto_data['categorias'] = categorias_produto
+        
+        return format_response('success', 'Produto editado com sucesso', produto_data, status.HTTP_200_OK)
         
     except Exception as e:
         import traceback

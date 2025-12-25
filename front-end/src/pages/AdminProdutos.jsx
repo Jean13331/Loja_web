@@ -25,7 +25,12 @@ import {
   DialogContentText,
   DialogActions,
   Checkbox,
-  FormControlLabel
+  FormControlLabel,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  OutlinedInput
 } from '@mui/material'
 import { ShoppingCart, Logout, AdminPanelSettings, ArrowBack, Add, Edit, Save, Cancel, Image as ImageIcon, Delete } from '@mui/icons-material'
 import authService from '../services/authService'
@@ -55,7 +60,24 @@ const AdminProdutos = () => {
     isDestaque: false,
     descontoPercentual: '',
     valorComDesconto: '',
+    categorias: [], // IDs das categorias selecionadas
   })
+  const [categorias, setCategorias] = useState([]) // Lista de categorias disponíveis
+  const [loadingCategorias, setLoadingCategorias] = useState(false)
+  const [categoriaDialogOpen, setCategoriaDialogOpen] = useState(false)
+  const [categoriaForm, setCategoriaForm] = useState({
+    nome: '',
+    descricao: '',
+    icone: '📦',
+  })
+  const [submittingCategoria, setSubmittingCategoria] = useState(false)
+
+  // Lista de ícones disponíveis para categorias
+  const iconesDisponiveis = [
+    '🔌', '🛏️', '🪑', '📱', '🏠', '⚽', '📦', '📚', '💄', '🧸',
+    '🍔', '🚗', '💊', '💻', '👕', '👟', '🎮', '🎨', '🏋️', '🎵',
+    '📷', '⌚', '🎁', '🌿', '🍕', '☕', '🍰', '🎪', '🎬', '🎯'
+  ]
 
   useEffect(() => {
     // Verificar se está autenticado e é admin
@@ -106,6 +128,64 @@ const AdminProdutos = () => {
       fetchProdutos()
     }
   }, [showForm, loading])
+
+  // Buscar categorias quando o formulário for aberto
+  useEffect(() => {
+    if (showForm) {
+      fetchCategorias()
+    }
+  }, [showForm])
+
+  const fetchCategorias = async () => {
+    setLoadingCategorias(true)
+    try {
+      const response = await api.get('/categorias')
+      if (response.status === 'success' && response.data) {
+        setCategorias(response.data)
+      } else {
+        setCategorias([])
+      }
+    } catch (err) {
+      console.error('Erro ao buscar categorias:', err)
+      setCategorias([])
+    } finally {
+      setLoadingCategorias(false)
+    }
+  }
+
+  const handleCadastrarCategoria = async () => {
+    if (!categoriaForm.nome.trim()) {
+      setError('O nome da categoria é obrigatório')
+      return
+    }
+
+    setSubmittingCategoria(true)
+    setError(null)
+
+    try {
+      const response = await api.post('/categorias/cadastrar', categoriaForm)
+      
+      if (response.status === 'success') {
+        setSuccess('Categoria cadastrada com sucesso!')
+        setCategoriaForm({ nome: '', descricao: '', icone: '📦' })
+        setCategoriaDialogOpen(false)
+        // Recarregar lista de categorias
+        await fetchCategorias()
+        // Limpar mensagem após 2 segundos
+        setTimeout(() => {
+          setSuccess(null)
+        }, 2000)
+      } else {
+        setError(response.message || 'Erro ao cadastrar categoria')
+      }
+    } catch (err) {
+      console.error('Erro ao cadastrar categoria:', err)
+      const errorMessage = err.message || err.response?.data?.message || 'Erro ao cadastrar categoria. Tente novamente.'
+      setError(errorMessage)
+    } finally {
+      setSubmittingCategoria(false)
+    }
+  }
 
   const fetchProdutos = async () => {
     setLoadingProdutos(true)
@@ -198,6 +278,9 @@ const AdminProdutos = () => {
           }
         }
         
+        // Extrair IDs das categorias do produto
+        const categoriasIds = (produtoData.categorias || []).map(cat => cat.idcategoria?.toString() || cat.idcategoria)
+        
         setFormData({
           nome: produtoData.nome || '',
           descricao: produtoData.descricao || '',
@@ -210,6 +293,7 @@ const AdminProdutos = () => {
           isDestaque,
           descontoPercentual,
           valorComDesconto,
+          categorias: categoriasIds,
         })
         
         setShowForm(true)
@@ -493,6 +577,13 @@ const AdminProdutos = () => {
           formDataToSend.append('imagens', img.file)
         }
       })
+      
+      // Adicionar categorias selecionadas
+      if (formData.categorias && formData.categorias.length > 0) {
+        formData.categorias.forEach((categoriaId) => {
+          formDataToSend.append('categorias', categoriaId.toString())
+        })
+      }
 
       let response
       if (editingProductId) {
@@ -528,6 +619,7 @@ const AdminProdutos = () => {
           isDestaque: false,
           descontoPercentual: '',
           valorComDesconto: '',
+          categorias: [],
         })
         setEditingProductId(null)
         
@@ -566,6 +658,7 @@ const AdminProdutos = () => {
       isDestaque: false,
       descontoPercentual: '',
       valorComDesconto: '',
+      categorias: [],
     })
     setError(null)
     setSuccess(null)
@@ -662,7 +755,21 @@ const AdminProdutos = () => {
                 <Button
                   variant="contained"
                   startIcon={<Add />}
-                  onClick={() => setShowForm(true)}
+                  onClick={() => {
+                    setEditingProductId(null)
+                    setFormData({
+                      nome: '',
+                      descricao: '',
+                      valor: '',
+                      estoque: '',
+                      imagens: [],
+                      isDestaque: false,
+                      descontoPercentual: '',
+                      valorComDesconto: '',
+                      categorias: [],
+                    })
+                    setShowForm(true)
+                  }}
                   sx={{
                     backgroundColor: '#F7401B',
                     '&:hover': {
@@ -961,6 +1068,111 @@ const AdminProdutos = () => {
                   </Grid>
 
                   <Grid item xs={12}>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                      <FormControl fullWidth variant="outlined">
+                        <InputLabel 
+                          id="categorias-label"
+                          sx={{
+                            '&.Mui-focused': {
+                              color: '#F7401B',
+                            },
+                          }}
+                        >
+                          Categorias
+                        </InputLabel>
+                        <Select
+                          labelId="categorias-label"
+                          id="categorias-select"
+                          multiple
+                          value={formData.categorias || []}
+                          onChange={(e) => {
+                            setFormData((prev) => ({
+                              ...prev,
+                              categorias: e.target.value,
+                            }))
+                          }}
+                          input={<OutlinedInput label="Categorias" />}
+                          disabled={loadingCategorias}
+                          sx={{
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: '#ccc',
+                            },
+                            '&:hover .MuiOutlinedInput-notchedOutline': {
+                              borderColor: '#F7401B',
+                            },
+                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                              borderColor: '#F7401B',
+                            },
+                          }}
+                          renderValue={(selected) => {
+                            if (selected.length === 0) {
+                              return <Typography sx={{ color: '#999' }}>Selecione as categorias</Typography>
+                            }
+                            return (
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {selected.map((value) => {
+                                  const categoria = categorias.find((cat) => cat.idcategoria?.toString() === value.toString() || cat.idcategoria === value)
+                                  return (
+                                    <Chip
+                                      key={value}
+                                      label={categoria?.nome || value}
+                                      size="small"
+                                      sx={{
+                                        backgroundColor: '#F7401B',
+                                        color: 'white',
+                                        '& .MuiChip-deleteIcon': {
+                                          color: 'white',
+                                        },
+                                      }}
+                                    />
+                                  )
+                                })}
+                              </Box>
+                            )
+                          }}
+                        >
+                          {loadingCategorias ? (
+                            <MenuItem disabled>
+                              <CircularProgress size={20} sx={{ mr: 1 }} />
+                              Carregando categorias...
+                            </MenuItem>
+                          ) : categorias.length === 0 ? (
+                            <MenuItem disabled>Nenhuma categoria disponível</MenuItem>
+                          ) : (
+                            categorias.map((categoria) => (
+                              <MenuItem
+                                key={categoria.idcategoria}
+                                value={categoria.idcategoria?.toString() || categoria.idcategoria}
+                              >
+                                {categoria.nome}
+                              </MenuItem>
+                            ))
+                          )}
+                        </Select>
+                      </FormControl>
+                      <Button
+                        variant="contained"
+                        startIcon={<Add />}
+                        onClick={() => setCategoriaDialogOpen(true)}
+                        sx={{
+                          backgroundColor: 'white',
+                          color: 'white',
+                          border: '1px solid #ddd',
+                          minWidth: 180,
+                          height: 56,
+                          '&:hover': {
+                            backgroundColor: '#f5f5f5',
+                            borderColor: '#ccc',
+                            color: 'white',
+                          },
+                        }}
+                      >
+                        Nova Categoria
+                      </Button>
+                    </Box>
+                  </Grid>
+
+                  <Grid item xs={12}>
                     <FormControlLabel
                       control={
                         <Checkbox
@@ -1188,6 +1400,172 @@ const AdminProdutos = () => {
           )}
         </Paper>
       </Container>
+
+      {/* Dialog para cadastrar categoria */}
+      <Dialog
+        open={categoriaDialogOpen}
+        onClose={() => {
+          setCategoriaDialogOpen(false)
+          setCategoriaForm({ nome: '', descricao: '' })
+          setError(null)
+        }}
+        aria-labelledby="categoria-dialog-title"
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle id="categoria-dialog-title" sx={{ color: '#F7401B', fontWeight: 600 }}>
+          Cadastrar Nova Categoria
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+                {error}
+              </Alert>
+            )}
+            {success && (
+              <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+                {success}
+              </Alert>
+            )}
+            <TextField
+              fullWidth
+              label="Nome da Categoria"
+              value={categoriaForm.nome}
+              onChange={(e) => setCategoriaForm({ ...categoriaForm, nome: e.target.value })}
+              required
+              variant="outlined"
+              sx={{
+                mb: 2,
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': {
+                    borderColor: '#F7401B',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#F7401B',
+                  },
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: '#F7401B',
+                },
+              }}
+            />
+            
+            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#213547' }}>
+              Escolha um ícone para a categoria:
+            </Typography>
+            <Box
+              sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 1,
+                mb: 2,
+                p: 2,
+                border: '1px solid #ddd',
+                borderRadius: 2,
+                backgroundColor: '#f9f9f9',
+                maxHeight: 200,
+                overflowY: 'auto',
+              }}
+            >
+              {iconesDisponiveis.map((icone) => (
+                <Box
+                  key={icone}
+                  onClick={() => setCategoriaForm({ ...categoriaForm, icone })}
+                  sx={{
+                    fontSize: '2rem',
+                    width: 50,
+                    height: 50,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    borderRadius: 1,
+                    border: categoriaForm.icone === icone ? '3px solid #F7401B' : '2px solid transparent',
+                    backgroundColor: categoriaForm.icone === icone ? '#fff5f2' : 'white',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: '#fff5f2',
+                      border: '2px solid #F7401B',
+                      transform: 'scale(1.1)',
+                    },
+                  }}
+                >
+                  {icone}
+                </Box>
+              ))}
+            </Box>
+            <Typography variant="caption" sx={{ mb: 2, display: 'block', color: '#666' }}>
+              Ícone selecionado: <span style={{ fontSize: '1.5rem' }}>{categoriaForm.icone}</span>
+            </Typography>
+            
+            <TextField
+              fullWidth
+              label="Descrição (opcional)"
+              value={categoriaForm.descricao}
+              onChange={(e) => setCategoriaForm({ ...categoriaForm, descricao: e.target.value })}
+              multiline
+              rows={3}
+              variant="outlined"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': {
+                    borderColor: '#F7401B',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#F7401B',
+                  },
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: '#F7401B',
+                },
+              }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setCategoriaDialogOpen(false)
+              setCategoriaForm({ nome: '', descricao: '', icone: '📦' })
+              setError(null)
+            }}
+            disabled={submittingCategoria}
+            sx={{ 
+              color: 'white',
+              backgroundColor: '#666',
+              '&:hover': {
+                backgroundColor: '#555',
+              },
+              '&:disabled': {
+                backgroundColor: '#ccc',
+                color: '#999',
+              },
+            }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleCadastrarCategoria}
+            disabled={submittingCategoria || !categoriaForm.nome.trim()}
+            variant="contained"
+            sx={{
+              backgroundColor: '#F7401B',
+              color: 'white !important',
+              '&:hover': {
+                backgroundColor: '#FF6B35',
+                color: 'white !important',
+              },
+              '&:disabled': {
+                backgroundColor: '#ccc',
+                color: '#999',
+              },
+            }}
+          >
+            {submittingCategoria ? 'Salvando...' : 'Cadastrar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Dialog de confirmação de exclusão */}
       <Dialog

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { 
   Box, 
   Container, 
@@ -11,9 +11,13 @@ import {
   IconButton,
   Card,
   CardContent,
-  Grid
+  CardMedia,
+  CardActions,
+  Grid,
+  Chip,
+  CircularProgress
 } from '@mui/material'
-import { ShoppingCart, AccountCircle, Search, LocalOffer, Category } from '@mui/icons-material'
+import { ShoppingCart, AccountCircle, Search, LocalOffer, Category, Star, ArrowBackIos, ArrowForwardIos } from '@mui/icons-material'
 import Badge from '@mui/material/Badge'
 import authService from '../services/authService'
 import { useEffect, useState } from 'react'
@@ -21,30 +25,160 @@ import api from '../services/api'
 
 const Loja = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [produtosDestaque, setProdutosDestaque] = useState([])
+  const [loadingDestaques, setLoadingDestaques] = useState(false)
+  const [destaqueAtual, setDestaqueAtual] = useState(0) // Índice do destaque atual
+  const [produtos, setProdutos] = useState([])
+  const [loadingProdutos, setLoadingProdutos] = useState(false)
   const [carrinho, setCarrinho] = useState({
     itens: [],
     quantidadeTotal: 0,
     valorTotal: 0,
   })
+  const [categorias, setCategorias] = useState([])
+  const [loadingCategorias, setLoadingCategorias] = useState(false)
 
-  // Categorias disponíveis
-  const categorias = [
-    { id: 1, nome: 'Eletrodomésticos', icone: '🔌', cor: '#FF6B35' },
-    { id: 2, nome: 'Cama, Mesa e Banho', icone: '🛏️', cor: '#4ECDC4' },
-    { id: 3, nome: 'Móveis', icone: '🪑', cor: '#95E1D3' },
-    { id: 4, nome: 'Eletrônicos', icone: '📱', cor: '#F38181' },
-    { id: 5, nome: 'Casa e Decoração', icone: '🏠', cor: '#AA96DA' },
-    { id: 6, nome: 'Esportes', icone: '⚽', cor: '#FCBAD3' },
-    { id: 7, nome: 'Outros', icone: '📦', cor: '#95A5A6' },
-  ]
+  // Mapeamento de ícones e cores para categorias baseado no nome
+  const getCategoriaIcone = (nome) => {
+    const nomeLower = nome.toLowerCase()
+    if (nomeLower.includes('eletrodoméstico') || nomeLower.includes('eletrodomestico')) return '🔌'
+    if (nomeLower.includes('cama') || nomeLower.includes('banho') || nomeLower.includes('mesa')) return '🛏️'
+    if (nomeLower.includes('móvel') || nomeLower.includes('movel')) return '🪑'
+    if (nomeLower.includes('eletrônico') || nomeLower.includes('eletronico')) return '📱'
+    if (nomeLower.includes('casa') || nomeLower.includes('decoração') || nomeLower.includes('decoracao')) return '🏠'
+    if (nomeLower.includes('esporte')) return '⚽'
+    if (nomeLower.includes('livro')) return '📚'
+    if (nomeLower.includes('beleza') || nomeLower.includes('perfumaria')) return '💄'
+    if (nomeLower.includes('brinquedo')) return '🧸'
+    if (nomeLower.includes('alimento') || nomeLower.includes('bebida')) return '🍔'
+    if (nomeLower.includes('automotivo') || nomeLower.includes('carro')) return '🚗'
+    if (nomeLower.includes('saúde') || nomeLower.includes('saude')) return '💊'
+    if (nomeLower.includes('informática') || nomeLower.includes('informatica')) return '💻'
+    if (nomeLower.includes('roupa') || nomeLower.includes('vestuário') || nomeLower.includes('vestuario')) return '👕'
+    if (nomeLower.includes('calçado') || nomeLower.includes('calcado')) return '👟'
+    return '📦' // Ícone padrão
+  }
+
+  const getCategoriaCor = (nome, index) => {
+    const cores = [
+      '#FF6B35', '#4ECDC4', '#95E1D3', '#F38181', 
+      '#AA96DA', '#FCBAD3', '#95A5A6', '#FFD93D',
+      '#6BCB77', '#4D96FF', '#9B59B6', '#E74C3C'
+    ]
+    return cores[index % cores.length]
+  }
 
   const handleCategoriaClick = (categoriaId) => {
     // TODO: Implementar navegação/filtro por categoria
     console.log('Categoria clicada:', categoriaId)
     // Exemplo: navigate(`/loja?categoria=${categoriaId}`)
+  }
+
+  const handleProximoDestaque = () => {
+    setDestaqueAtual((prev) => (prev + 1) % produtosDestaque.length)
+  }
+
+  const handleDestaqueAnterior = () => {
+    setDestaqueAtual((prev) => (prev - 1 + produtosDestaque.length) % produtosDestaque.length)
+  }
+
+  // Buscar produtos em destaque
+  const fetchDestaques = async () => {
+    setLoadingDestaques(true)
+    try {
+      const response = await api.get('/produtos/destaques')
+      console.log('Resposta da API de destaques:', response)
+      
+      if (response && response.status === 'success' && response.data) {
+        setProdutosDestaque(response.data)
+      } else if (Array.isArray(response)) {
+        setProdutosDestaque(response)
+      } else {
+        setProdutosDestaque([])
+      }
+    } catch (err) {
+      console.error('Erro ao buscar destaques:', err)
+      setProdutosDestaque([])
+    } finally {
+      setLoadingDestaques(false)
+    }
+  }
+
+  // Buscar todos os produtos
+  const fetchProdutos = async () => {
+    setLoadingProdutos(true)
+    try {
+      const response = await api.get('/produtos')
+      console.log('Resposta da API de produtos:', response)
+      
+      let produtosData = null
+      if (response && response.status === 'success' && response.data) {
+        produtosData = response.data
+      } else if (Array.isArray(response)) {
+        produtosData = response
+      } else if (response && response.data && Array.isArray(response.data)) {
+        produtosData = response.data
+      }
+      
+      if (produtosData && produtosData.length > 0) {
+        setProdutos(produtosData)
+      } else {
+        setProdutos([])
+      }
+    } catch (err) {
+      console.error('Erro ao buscar produtos:', err)
+      setProdutos([])
+    } finally {
+      setLoadingProdutos(false)
+    }
+  }
+
+  // Buscar categorias do backend
+  const fetchCategorias = async () => {
+    setLoadingCategorias(true)
+    try {
+      console.log('Buscando categorias...')
+      const response = await api.get('/categorias')
+      console.log('Resposta da API de categorias:', response)
+      
+      // Verificar diferentes formatos de resposta
+      let categoriasData = null
+      if (response && response.status === 'success' && response.data) {
+        categoriasData = response.data
+      } else if (Array.isArray(response)) {
+        // Se a resposta for diretamente um array
+        categoriasData = response
+      } else if (response && response.data && Array.isArray(response.data)) {
+        categoriasData = response.data
+      }
+      
+      if (categoriasData && categoriasData.length > 0) {
+        // Usar ícone do banco ou mapear automaticamente se não tiver
+        const categoriasComIcone = categoriasData.map((cat, index) => ({
+          ...cat,
+          icone: cat.icone || getCategoriaIcone(cat.nome),
+          cor: getCategoriaCor(cat.nome, index),
+        }))
+        console.log('Categorias processadas:', categoriasComIcone)
+        setCategorias(categoriasComIcone)
+      } else {
+        console.log('Nenhuma categoria encontrada ou resposta vazia')
+        setCategorias([])
+      }
+    } catch (err) {
+      console.error('Erro ao buscar categorias:', err)
+      console.error('Detalhes do erro:', {
+        message: err.message,
+        status: err.status,
+        response: err.response,
+      })
+      setCategorias([])
+    } finally {
+      setLoadingCategorias(false)
+    }
   }
 
   useEffect(() => {
@@ -68,6 +202,7 @@ const Loja = () => {
         if (error.status === 401) {
           authService.logout()
           navigate('/login')
+          return
         } else {
           setUser(authService.getCurrentUser())
         }
@@ -76,8 +211,39 @@ const Loja = () => {
       }
     }
 
+    // Buscar categorias independentemente do resultado do fetchUserData
+    // pois categorias são públicas (AllowAny)
+    fetchCategorias()
+    fetchDestaques() // Buscar produtos em destaque
+    fetchProdutos() // Buscar todos os produtos
     fetchUserData()
-  }, [navigate])
+
+    // Atualizar dados quando a janela receber foco (usuário volta para a aba)
+    const handleFocus = () => {
+      fetchCategorias()
+      fetchDestaques()
+      fetchProdutos()
+    }
+
+    // Atualizar dados quando a página ficar visível novamente
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchCategorias()
+        fetchDestaques()
+        fetchProdutos()
+      }
+    }
+
+    // Adicionar listeners
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    // Cleanup: remover listeners quando o componente for desmontado
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [navigate]) // Removido location.pathname para evitar recarregamentos desnecessários
 
   const handleLogout = () => {
     authService.logout()
@@ -238,27 +404,279 @@ const Loja = () => {
             </Typography>
           </Box>
 
-          <Paper
-            elevation={4}
-            sx={{
-              padding: 4,
-              borderRadius: 3,
-              backgroundColor: 'white',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-              minHeight: 300,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Typography variant="h6" sx={{ mb: 1, color: '#666', fontWeight: 500 }}>
-              Nenhum produto em destaque no momento
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#999', textAlign: 'center' }}>
-              Os produtos em destaque aparecerão aqui quando forem cadastrados
-            </Typography>
-          </Paper>
+          {loadingDestaques ? (
+            <Paper
+              elevation={2}
+              sx={{
+                padding: 4,
+                borderRadius: 3,
+                backgroundColor: 'white',
+                textAlign: 'center',
+                minHeight: 300,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <CircularProgress sx={{ mb: 2 }} />
+              <Typography variant="body1" sx={{ color: '#666' }}>
+                Carregando destaques...
+              </Typography>
+            </Paper>
+          ) : produtosDestaque.length === 0 ? (
+            <Paper
+              elevation={4}
+              sx={{
+                padding: 4,
+                borderRadius: 3,
+                backgroundColor: 'white',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                minHeight: 300,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 1, color: '#666', fontWeight: 500 }}>
+                Nenhum produto em destaque no momento
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#999', textAlign: 'center' }}>
+                Os produtos em destaque aparecerão aqui quando forem cadastrados
+              </Typography>
+            </Paper>
+          ) : (
+            <Box sx={{ position: 'relative' }}>
+              {produtosDestaque.length > 0 && (
+                <>
+                  <Card
+                    sx={{
+                      display: 'flex',
+                      flexDirection: { xs: 'column', md: 'row' },
+                      borderRadius: 3,
+                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                      overflow: 'hidden',
+                      height: { xs: 'auto', md: 400 },
+                      backgroundColor: 'white',
+                    }}
+                  >
+                    {/* Imagem do produto */}
+                    <Box
+                      sx={{
+                        width: { xs: '100%', md: '55%' },
+                        height: { xs: 300, md: '100%' },
+                        position: 'relative',
+                        backgroundColor: '#f5f5f5',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {produtosDestaque[destaqueAtual]?.imagem_principal ? (
+                        <Box
+                          component="img"
+                          src={produtosDestaque[destaqueAtual].imagem_principal}
+                          alt={produtosDestaque[destaqueAtual].nome}
+                          sx={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'contain',
+                            objectPosition: 'center',
+                            padding: 2,
+                          }}
+                        />
+                      ) : (
+                        <Box
+                          sx={{
+                            width: '100%',
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <ShoppingCart sx={{ fontSize: 80, color: '#ccc' }} />
+                        </Box>
+                      )}
+                      {produtosDestaque[destaqueAtual]?.destaque && (
+                        <Chip
+                          label={`${produtosDestaque[destaqueAtual].destaque.desconto_percentual}% OFF`}
+                          sx={{
+                            position: 'absolute',
+                            top: 16,
+                            right: 16,
+                            backgroundColor: '#F7401B',
+                            color: 'white',
+                            fontWeight: 700,
+                            fontSize: '1rem',
+                            padding: '8px 16px',
+                            height: 'auto',
+                            zIndex: 2,
+                          }}
+                        />
+                      )}
+                    </Box>
+
+                    {/* Informações do produto */}
+                    <Box
+                      sx={{
+                        width: { xs: '100%', md: '45%' },
+                        padding: 4,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <Box>
+                        <Typography variant="h4" component="h3" sx={{ fontWeight: 700, color: '#213547', mb: 2 }}>
+                          {produtosDestaque[destaqueAtual]?.nome}
+                        </Typography>
+                        <Typography variant="body1" color="text.secondary" sx={{ mb: 3, lineHeight: 1.6 }}>
+                          {produtosDestaque[destaqueAtual]?.descricao}
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                          <Star sx={{ fontSize: 24, color: '#FFC107' }} />
+                          <Typography variant="h6" sx={{ color: '#666' }}>
+                            {produtosDestaque[destaqueAtual]?.media_avaliacao && !isNaN(parseFloat(produtosDestaque[destaqueAtual].media_avaliacao)) 
+                              ? parseFloat(produtosDestaque[destaqueAtual].media_avaliacao).toFixed(1) 
+                              : '0.0'}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 2, mb: 3 }}>
+                          {produtosDestaque[destaqueAtual]?.destaque ? (
+                            <>
+                              <Typography
+                                variant="h3"
+                                sx={{
+                                  color: '#F7401B',
+                                  fontWeight: 700,
+                                }}
+                              >
+                                R$ {produtosDestaque[destaqueAtual].destaque.valor_com_desconto && !isNaN(parseFloat(produtosDestaque[destaqueAtual].destaque.valor_com_desconto)) 
+                                  ? parseFloat(produtosDestaque[destaqueAtual].destaque.valor_com_desconto).toFixed(2).replace('.', ',') 
+                                  : '0,00'}
+                              </Typography>
+                              <Typography
+                                variant="h5"
+                                sx={{
+                                  color: '#999',
+                                  textDecoration: 'line-through',
+                                  fontWeight: 400,
+                                }}
+                              >
+                                R$ {produtosDestaque[destaqueAtual].valor && !isNaN(parseFloat(produtosDestaque[destaqueAtual].valor)) 
+                                  ? parseFloat(produtosDestaque[destaqueAtual].valor).toFixed(2).replace('.', ',') 
+                                  : '0,00'}
+                              </Typography>
+                            </>
+                          ) : (
+                            <Typography
+                              variant="h3"
+                              sx={{
+                                color: '#F7401B',
+                                fontWeight: 700,
+                              }}
+                            >
+                              R$ {produtosDestaque[destaqueAtual]?.valor && !isNaN(parseFloat(produtosDestaque[destaqueAtual].valor)) 
+                                ? parseFloat(produtosDestaque[destaqueAtual].valor).toFixed(2).replace('.', ',') 
+                                : '0,00'}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        size="large"
+                        startIcon={<ShoppingCart />}
+                        sx={{
+                          backgroundColor: '#F7401B',
+                          padding: '14px 28px',
+                          fontSize: '1.1rem',
+                          fontWeight: 600,
+                          '&:hover': {
+                            backgroundColor: '#FF6B35',
+                          },
+                        }}
+                      >
+                        Adicionar ao Carrinho
+                      </Button>
+                    </Box>
+                  </Card>
+
+                  {/* Navegação entre destaques */}
+                  {produtosDestaque.length > 1 && (
+                    <>
+                      <IconButton
+                        onClick={handleDestaqueAnterior}
+                        sx={{
+                          position: 'absolute',
+                          left: 16,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          color: '#F7401B',
+                          '&:hover': {
+                            backgroundColor: 'white',
+                          },
+                          zIndex: 1,
+                        }}
+                      >
+                        <ArrowBackIos />
+                      </IconButton>
+                      <IconButton
+                        onClick={handleProximoDestaque}
+                        sx={{
+                          position: 'absolute',
+                          right: 16,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          color: '#F7401B',
+                          '&:hover': {
+                            backgroundColor: 'white',
+                          },
+                          zIndex: 1,
+                        }}
+                      >
+                        <ArrowForwardIos />
+                      </IconButton>
+                      
+                      {/* Indicadores de destaque */}
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'center',
+                          gap: 1,
+                          mt: 2,
+                        }}
+                      >
+                        {produtosDestaque.map((_, index) => (
+                          <Box
+                            key={index}
+                            onClick={() => setDestaqueAtual(index)}
+                            sx={{
+                              width: index === destaqueAtual ? 32 : 12,
+                              height: 12,
+                              borderRadius: 6,
+                              backgroundColor: index === destaqueAtual ? '#F7401B' : '#ccc',
+                              cursor: 'pointer',
+                              transition: 'all 0.3s ease',
+                              '&:hover': {
+                                backgroundColor: index === destaqueAtual ? '#FF6B35' : '#999',
+                              },
+                            }}
+                          />
+                        ))}
+                      </Box>
+                    </>
+                  )}
+                </>
+              )}
+            </Box>
+          )}
         </Box>
 
         {/* Seção de Categorias */}
@@ -270,44 +688,84 @@ const Loja = () => {
             </Typography>
           </Box>
 
-          <Box
-            sx={{
-              display: 'flex',
-              gap: 2,
-              flexWrap: { xs: 'wrap', sm: 'nowrap' },
-              justifyContent: 'space-between',
-            }}
-          >
-            {categorias.map((categoria) => (
-              <Card
-                key={categoria.id}
-                onClick={() => handleCategoriaClick(categoria.id)}
-                sx={{
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  borderRadius: 3,
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                  flex: { xs: '1 1 calc(50% - 8px)', sm: '1 1 auto' },
-                  minWidth: { xs: 'calc(50% - 8px)', sm: 'auto' },
-                  maxWidth: { xs: 'calc(50% - 8px)', sm: 'none' },
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
-                  },
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: 2,
-                  backgroundColor: 'white',
-                  border: '2px solid transparent',
-                  borderBottom: '3px solid transparent',
-                  '&:hover': {
-                    borderBottom: '3px solid #4CAF50',
-                  },
-                }}
-              >
+          {loadingCategorias ? (
+            <Paper
+              elevation={2}
+              sx={{
+                padding: 4,
+                borderRadius: 3,
+                backgroundColor: 'white',
+                textAlign: 'center',
+                minHeight: 150,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Typography variant="body1" sx={{ color: '#666' }}>
+                Carregando categorias...
+              </Typography>
+            </Paper>
+          ) : categorias.length === 0 ? (
+            <Paper
+              elevation={2}
+              sx={{
+                padding: 4,
+                borderRadius: 3,
+                backgroundColor: 'white',
+                textAlign: 'center',
+                minHeight: 150,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 1, color: '#666', fontWeight: 500 }}>
+                Nenhuma categoria disponível
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#999' }}>
+                As categorias aparecerão aqui quando forem cadastradas
+              </Typography>
+            </Paper>
+          ) : (
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 1.5,
+                flexWrap: 'wrap',
+                justifyContent: 'flex-start',
+              }}
+            >
+              {categorias.map((categoria) => (
+                <Card
+                  key={categoria.idcategoria}
+                  onClick={() => handleCategoriaClick(categoria.idcategoria)}
+                  sx={{
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    borderRadius: 3,
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                    flex: { xs: '1 1 calc(50% - 6px)', sm: '0 0 auto' },
+                    minWidth: { xs: 'calc(50% - 6px)', sm: 140 },
+                    maxWidth: { xs: 'calc(50% - 6px)', sm: 180 },
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 2,
+                    backgroundColor: 'white',
+                    border: '2px solid transparent',
+                    borderBottom: '3px solid transparent',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                      borderBottom: '3px solid #4CAF50',
+                    },
+                  }}
+                >
                   <Box
                     sx={{
                       fontSize: '3rem',
@@ -332,8 +790,9 @@ const Loja = () => {
                     {categoria.nome}
                   </Typography>
                 </Card>
-            ))}
-          </Box>
+              ))}
+            </Box>
+          )}
           </Box>
 
         {/* Seção de Produtos */}
@@ -345,32 +804,224 @@ const Loja = () => {
             </Typography>
           </Box>
 
-          <Grid container spacing={3}>
-            {/* Placeholder para produtos - será substituído quando houver produtos no banco */}
-            <Grid item xs={12}>
-              <Paper
-                elevation={2}
-                sx={{
-                  padding: 4,
-                  borderRadius: 3,
-                  backgroundColor: 'white',
-                  textAlign: 'center',
-                  minHeight: 200,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Typography variant="h6" sx={{ mb: 1, color: '#666', fontWeight: 500 }}>
-                  Nenhum produto disponível no momento
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#999' }}>
-                  Os produtos aparecerão aqui quando forem cadastrados
-                </Typography>
-              </Paper>
-            </Grid>
-          </Grid>
+          {loadingProdutos ? (
+            <Paper
+              elevation={2}
+              sx={{
+                padding: 4,
+                borderRadius: 3,
+                backgroundColor: 'white',
+                textAlign: 'center',
+                minHeight: 200,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <CircularProgress sx={{ mb: 2 }} />
+              <Typography variant="body1" sx={{ color: '#666' }}>
+                Carregando produtos...
+              </Typography>
+            </Paper>
+          ) : produtos.length === 0 ? (
+            <Paper
+              elevation={2}
+              sx={{
+                padding: 4,
+                borderRadius: 3,
+                backgroundColor: 'white',
+                textAlign: 'center',
+                minHeight: 200,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 1, color: '#666', fontWeight: 500 }}>
+                Nenhum produto disponível no momento
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#999' }}>
+                Os produtos aparecerão aqui quando forem cadastrados
+              </Typography>
+            </Paper>
+          ) : (
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 2,
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                pb: 2,
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#ccc transparent',
+                '&::-webkit-scrollbar': {
+                  height: 8,
+                },
+                '&::-webkit-scrollbar-track': {
+                  background: 'transparent',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  background: '#ccc',
+                  borderRadius: 4,
+                  '&:hover': {
+                    background: '#999',
+                  },
+                },
+              }}
+            >
+              {produtos.map((produto) => (
+                <Card
+                  key={produto.idproduto}
+                  sx={{
+                    minWidth: 280,
+                    maxWidth: 280,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    borderRadius: 2,
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                    transition: 'all 0.3s ease',
+                    backgroundColor: 'white',
+                    overflow: 'hidden',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                    },
+                  }}
+                >
+                  {/* Container da imagem com tag de desconto */}
+                  <Box sx={{ position: 'relative' }}>
+                    {produto.imagem_principal ? (
+                      <Box
+                        component="img"
+                        src={produto.imagem_principal}
+                        alt={produto.nome}
+                        sx={{
+                          width: '100%',
+                          height: 200,
+                          objectFit: 'contain',
+                          backgroundColor: '#f5f5f5',
+                          padding: 1,
+                        }}
+                      />
+                    ) : (
+                      <Box
+                        sx={{
+                          height: 200,
+                          backgroundColor: '#f5f5f5',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <ShoppingCart sx={{ fontSize: 60, color: '#ccc' }} />
+                      </Box>
+                    )}
+                    {/* Tag de desconto */}
+                    {produto.destaque && (
+                      <Chip
+                        label={`-${produto.destaque.desconto_percentual}%`}
+                        sx={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          backgroundColor: '#F7401B',
+                          color: 'white',
+                          fontWeight: 700,
+                          fontSize: '0.75rem',
+                          height: 28,
+                        }}
+                      />
+                    )}
+                  </Box>
+
+                  {/* Conteúdo do card */}
+                  <CardContent sx={{ flexGrow: 1, p: 2, pb: 1 }}>
+                    {/* Label "Indicado" se for destaque */}
+                    {produto.destaque && (
+                      <Chip
+                        label="Indicado"
+                        size="small"
+                        sx={{
+                          backgroundColor: '#FF9800',
+                          color: 'white',
+                          fontWeight: 600,
+                          fontSize: '0.7rem',
+                          height: 20,
+                          mb: 1,
+                        }}
+                      />
+                    )}
+                    
+                    <Typography 
+                      variant="body2" 
+                      component="h3" 
+                      sx={{ 
+                        fontWeight: 500, 
+                        color: '#213547', 
+                        mb: 1,
+                        fontSize: '0.875rem',
+                        lineHeight: 1.4,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {produto.nome}
+                    </Typography>
+
+                    {/* Preço */}
+                    <Box sx={{ mt: 1.5 }}>
+                      {produto.destaque ? (
+                        <>
+                          <Typography
+                            variant="h6"
+                            sx={{
+                              color: '#F7401B',
+                              fontWeight: 700,
+                              fontSize: '1.25rem',
+                            }}
+                          >
+                            R$ {produto.destaque.valor_com_desconto && !isNaN(parseFloat(produto.destaque.valor_com_desconto)) 
+                              ? parseFloat(produto.destaque.valor_com_desconto).toFixed(2).replace('.', ',') 
+                              : '0,00'}
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color: '#999',
+                              textDecoration: 'line-through',
+                              fontSize: '0.875rem',
+                            }}
+                          >
+                            R$ {produto.valor && !isNaN(parseFloat(produto.valor)) 
+                              ? parseFloat(produto.valor).toFixed(2).replace('.', ',') 
+                              : '0,00'}
+                          </Typography>
+                        </>
+                      ) : (
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            color: '#F7401B',
+                            fontWeight: 700,
+                            fontSize: '1.25rem',
+                          }}
+                        >
+                          R$ {produto.valor && !isNaN(parseFloat(produto.valor)) 
+                            ? parseFloat(produto.valor).toFixed(2).replace('.', ',') 
+                            : '0,00'}
+                        </Typography>
+                      )}
+                    </Box>
+                  </CardContent>
+                </Card>
+              ))}
+            </Box>
+          )}
         </Box>
       </Container>
     </Box>
