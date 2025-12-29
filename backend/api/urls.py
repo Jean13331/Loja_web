@@ -21,6 +21,7 @@ urlpatterns = [
     path('produtos/destaques', views_produto.listar_destaques, name='listar_destaques'),
     path('categorias', views_produto.listar_categorias, name='listar_categorias'),
     path('categorias/cadastrar', views_produto.cadastrar_categoria, name='cadastrar_categoria'),
+    path('categorias/<int:categoria_id>/deletar', views_produto.deletar_categoria, name='deletar_categoria'),
     
     # Health check
     path('health', views.health_check, name='health'),

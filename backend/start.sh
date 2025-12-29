@@ -8,3 +8,4 @@ pip install -r requirements.txt
 echo "Iniciando servidor Django..."
 python manage.py runserver
 
+

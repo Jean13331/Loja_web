@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS categoria (
     idcategoria SERIAL PRIMARY KEY,
     nome VARCHAR(100) NOT NULL UNIQUE,
     descricao VARCHAR(500),
-    icone VARCHAR(10) DEFAULT '📦'
+    icone VARCHAR(10) DEFAULT '📦',
     data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

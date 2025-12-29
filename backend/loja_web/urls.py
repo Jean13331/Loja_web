@@ -22,3 +22,4 @@ urlpatterns = [
     path('', root_view),
 ]
 
+

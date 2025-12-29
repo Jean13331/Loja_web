@@ -71,6 +71,9 @@ const AdminProdutos = () => {
     icone: '📦',
   })
   const [submittingCategoria, setSubmittingCategoria] = useState(false)
+  const [deleteCategoriaDialogOpen, setDeleteCategoriaDialogOpen] = useState(false)
+  const [categoriaToDelete, setCategoriaToDelete] = useState(null)
+  const [deletingCategoria, setDeletingCategoria] = useState(false)
 
   // Lista de ícones disponíveis para categorias
   const iconesDisponiveis = [
@@ -184,6 +187,49 @@ const AdminProdutos = () => {
       setError(errorMessage)
     } finally {
       setSubmittingCategoria(false)
+    }
+  }
+
+  const handleDeleteCategoriaClick = (categoria) => {
+    setCategoriaToDelete(categoria)
+    setDeleteCategoriaDialogOpen(true)
+  }
+
+  const handleConfirmDeleteCategoria = async () => {
+    if (!categoriaToDelete) return
+
+    setDeletingCategoria(true)
+    setError(null)
+
+    try {
+      const response = await api.delete(`/categorias/${categoriaToDelete.idcategoria}/deletar`)
+      
+      if (response.status === 'success') {
+        setSuccess('Categoria deletada com sucesso!')
+        setDeleteCategoriaDialogOpen(false)
+        setCategoriaToDelete(null)
+        // Recarregar lista de categorias
+        await fetchCategorias()
+        // Remover categoria das selecionadas se estiver selecionada
+        setFormData((prev) => ({
+          ...prev,
+          categorias: prev.categorias.filter(
+            (catId) => catId.toString() !== categoriaToDelete.idcategoria.toString()
+          ),
+        }))
+        // Limpar mensagem após 2 segundos
+        setTimeout(() => {
+          setSuccess(null)
+        }, 2000)
+      } else {
+        setError(response.message || 'Erro ao deletar categoria')
+      }
+    } catch (err) {
+      console.error('Erro ao deletar categoria:', err)
+      const errorMessage = err.message || err.response?.data?.message || 'Erro ao deletar categoria. Tente novamente.'
+      setError(errorMessage)
+    } finally {
+      setDeletingCategoria(false)
     }
   }
 
@@ -1172,6 +1218,48 @@ const AdminProdutos = () => {
                     </Box>
                   </Grid>
 
+                  {/* Seção de Gerenciamento de Categorias */}
+                  <Grid item xs={12}>
+                    <Box sx={{ mt: 2, p: 2, backgroundColor: '#f9f9f9', borderRadius: 2 }}>
+                      <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600, color: '#213547' }}>
+                        Gerenciar Categorias
+                      </Typography>
+                      {loadingCategorias ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                          <CircularProgress size={24} />
+                        </Box>
+                      ) : categorias.length === 0 ? (
+                        <Typography variant="body2" sx={{ color: '#666', textAlign: 'center', p: 2 }}>
+                          Nenhuma categoria cadastrada
+                        </Typography>
+                      ) : (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                          {categorias.map((categoria) => (
+                            <Chip
+                              key={categoria.idcategoria}
+                              label={`${categoria.icone || '📦'} ${categoria.nome}`}
+                              onDelete={() => handleDeleteCategoriaClick(categoria)}
+                              deleteIcon={<Delete />}
+                              sx={{
+                                backgroundColor: 'white',
+                                border: '1px solid #ddd',
+                                '&:hover': {
+                                  backgroundColor: '#f5f5f5',
+                                },
+                                '& .MuiChip-deleteIcon': {
+                                  color: '#F7401B',
+                                  '&:hover': {
+                                    color: '#d32f2f',
+                                  },
+                                },
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      )}
+                    </Box>
+                  </Grid>
+
                   <Grid item xs={12}>
                     <FormControlLabel
                       control={
@@ -1567,7 +1655,7 @@ const AdminProdutos = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog de confirmação de exclusão */}
+      {/* Dialog de confirmação de exclusão de produto */}
       <Dialog
         open={deleteDialogOpen}
         onClose={handleDeleteCancel}
@@ -1606,6 +1694,57 @@ const AdminProdutos = () => {
             }}
           >
             {deleting ? 'Deletando...' : 'Deletar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog de confirmação de exclusão de categoria */}
+      <Dialog
+        open={deleteCategoriaDialogOpen}
+        onClose={() => {
+          setDeleteCategoriaDialogOpen(false)
+          setCategoriaToDelete(null)
+        }}
+        aria-labelledby="delete-categoria-dialog-title"
+        aria-describedby="delete-categoria-dialog-description"
+      >
+        <DialogTitle id="delete-categoria-dialog-title" sx={{ color: '#d32f2f', fontWeight: 600 }}>
+          Confirmar Exclusão de Categoria
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-categoria-dialog-description">
+            Tem certeza que deseja deletar a categoria <strong>"{categoriaToDelete?.icone || '📦'} {categoriaToDelete?.nome}"</strong>?
+            <br />
+            <br />
+            Esta ação não pode ser desfeita. A categoria será permanentemente removida.
+            <br />
+            <strong>Nota:</strong> Não é possível deletar categorias que possuem produtos associados.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => {
+              setDeleteCategoriaDialogOpen(false)
+              setCategoriaToDelete(null)
+            }}
+            disabled={deletingCategoria}
+            sx={{ color: '#666' }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleConfirmDeleteCategoria}
+            disabled={deletingCategoria}
+            variant="contained"
+            startIcon={deletingCategoria ? <CircularProgress size={20} color="inherit" /> : <Delete />}
+            sx={{
+              backgroundColor: '#d32f2f',
+              '&:hover': {
+                backgroundColor: '#b71c1c',
+              },
+            }}
+          >
+            {deletingCategoria ? 'Deletando...' : 'Deletar'}
           </Button>
         </DialogActions>
       </Dialog>

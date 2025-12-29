@@ -224,6 +224,64 @@ def cadastrar_categoria(request):
         return format_response('error', f'Erro ao cadastrar categoria: {str(e)}', None, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def deletar_categoria(request, categoria_id):
+    """Deleta uma categoria (apenas admin)"""
+    try:
+        # Verificar se o usuário é admin
+        user_id = None
+        if hasattr(request.user, 'idusuario'):
+            user_id = request.user.idusuario
+            user = request.user
+        else:
+            # Tentar extrair do token
+            auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+            if auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
+                try:
+                    decoded = UntypedToken(token)
+                    user_id = decoded.get('id')
+                    user = Usuario.objects.get(idusuario=user_id)
+                except Exception:
+                    return format_response('error', 'Token inválido', None, status.HTTP_401_UNAUTHORIZED)
+            else:
+                return format_response('error', 'Token não fornecido', None, status.HTTP_401_UNAUTHORIZED)
+        
+        # Verificar se é admin
+        if not (user.admin == 1 or user.admin is True):
+            return format_response('error', 'Acesso negado. Apenas administradores podem deletar categorias.', None, status.HTTP_403_FORBIDDEN)
+        
+        # Verificar se a categoria existe
+        try:
+            categoria = Categoria.objects.get(idcategoria=categoria_id)
+        except Categoria.DoesNotExist:
+            return format_response('error', 'Categoria não encontrada', None, status.HTTP_404_NOT_FOUND)
+        
+        # Verificar se há produtos associados a esta categoria
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT COUNT(*) 
+                FROM produto_has_categoria 
+                WHERE categoria_idcategoria = %s
+            """, [categoria_id])
+            count = cursor.fetchone()[0]
+            
+            if count > 0:
+                return format_response('error', f'Não é possível deletar a categoria. Existem {count} produto(s) associado(s) a ela.', None, status.HTTP_400_BAD_REQUEST)
+        
+        # Deletar categoria (as relações serão deletadas automaticamente por CASCADE)
+        with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM categoria WHERE idcategoria = %s", [categoria_id])
+        
+        return format_response('success', 'Categoria deletada com sucesso', None, status.HTTP_200_OK)
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return format_response('error', f'Erro ao deletar categoria: {str(e)}', None, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def cadastrar_produto(request):

@@ -15,9 +15,10 @@ import {
   CardActions,
   Grid,
   Chip,
-  CircularProgress
+  CircularProgress,
+  Tooltip
 } from '@mui/material'
-import { ShoppingCart, AccountCircle, Search, LocalOffer, Category, Star, ArrowBackIos, ArrowForwardIos } from '@mui/icons-material'
+import { ShoppingCart, AccountCircle, Search, LocalOffer, Category, Star, ArrowBackIos, ArrowForwardIos, Favorite, FavoriteBorder } from '@mui/icons-material'
 import Badge from '@mui/material/Badge'
 import authService from '../services/authService'
 import { useEffect, useState } from 'react'
@@ -31,6 +32,9 @@ const Loja = () => {
   const [produtosDestaque, setProdutosDestaque] = useState([])
   const [loadingDestaques, setLoadingDestaques] = useState(false)
   const [destaqueAtual, setDestaqueAtual] = useState(0) // Índice do destaque atual
+  const [swipeStart, setSwipeStart] = useState(null)
+  const [swipeOffset, setSwipeOffset] = useState(0)
+  const [isTransitioning, setIsTransitioning] = useState(false)
   const [produtos, setProdutos] = useState([])
   const [loadingProdutos, setLoadingProdutos] = useState(false)
   const [carrinho, setCarrinho] = useState({
@@ -40,6 +44,7 @@ const Loja = () => {
   })
   const [categorias, setCategorias] = useState([])
   const [loadingCategorias, setLoadingCategorias] = useState(false)
+  const [favoritos, setFavoritos] = useState([])
 
   // Mapeamento de ícones e cores para categorias baseado no nome
   const getCategoriaIcone = (nome) => {
@@ -78,11 +83,82 @@ const Loja = () => {
   }
 
   const handleProximoDestaque = () => {
+    if (isTransitioning) return
+    setIsTransitioning(true)
     setDestaqueAtual((prev) => (prev + 1) % produtosDestaque.length)
+    setTimeout(() => setIsTransitioning(false), 300)
   }
 
   const handleDestaqueAnterior = () => {
+    if (isTransitioning) return
+    setIsTransitioning(true)
     setDestaqueAtual((prev) => (prev - 1 + produtosDestaque.length) % produtosDestaque.length)
+    setTimeout(() => setIsTransitioning(false), 300)
+  }
+
+  // Handlers para swipe/touch
+  const handleSwipeStart = (e) => {
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX
+    setSwipeStart(clientX)
+    setSwipeOffset(0)
+  }
+
+  const handleSwipeMove = (e) => {
+    if (swipeStart === null) return
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX
+    const diff = clientX - swipeStart
+    setSwipeOffset(diff)
+  }
+
+  const handleSwipeEnd = () => {
+    if (swipeStart === null) return
+    
+    const threshold = 50 // Mínimo de pixels para considerar um swipe
+    if (Math.abs(swipeOffset) > threshold) {
+      if (swipeOffset > 0) {
+        // Swipe para direita = anterior
+        handleDestaqueAnterior()
+      } else {
+        // Swipe para esquerda = próximo
+        handleProximoDestaque()
+      }
+    }
+    
+    setSwipeStart(null)
+    setSwipeOffset(0)
+  }
+
+  // Verificar se um produto está favoritado
+  const isFavoritado = (produtoId) => {
+    return favoritos.some(fav => fav.idproduto === produtoId || fav === produtoId)
+  }
+
+  // Adicionar ou remover favorito
+  const handleToggleFavorito = async (produto) => {
+    const produtoId = produto.idproduto
+    const jaFavoritado = isFavoritado(produtoId)
+    
+    try {
+      if (jaFavoritado) {
+        // Remover favorito
+        // TODO: Implementar chamada à API para remover favorito
+        // await api.delete(`/favoritos/${produtoId}`)
+        setFavoritos(prev => prev.filter(fav => {
+          if (typeof fav === 'object') {
+            return fav.idproduto !== produtoId
+          }
+          return fav !== produtoId
+        }))
+      } else {
+        // Adicionar favorito
+        // TODO: Implementar chamada à API para adicionar favorito
+        // await api.post(`/favoritos`, { produto_id: produtoId })
+        setFavoritos(prev => [...prev, produtoId])
+      }
+    } catch (error) {
+      console.error('Erro ao favoritar produto:', error)
+      setError('Erro ao favoritar produto. Tente novamente.')
+    }
   }
 
   // Buscar produtos em destaque
@@ -327,74 +403,99 @@ const Loja = () => {
             />
           </Box>
 
+          {/* Favoritos */}
+          <Tooltip title="Favoritos" arrow>
+            <IconButton
+              onClick={() => {
+                // TODO: Implementar navegação para página de favoritos
+                console.log('Favoritos clicado')
+              }}
+              sx={{
+                color: 'white',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                mr: 1,
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                },
+              }}
+            >
+              <Badge badgeContent={favoritos.length} color="error">
+                <Favorite sx={{ fontSize: 28 }} />
+              </Badge>
+            </IconButton>
+          </Tooltip>
+
           {/* Carrinho */}
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              mr: 2,
-              ml: 'auto',
-              padding: '6px 12px',
-              borderRadius: 2,
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              },
-            }}
-            onClick={() => {
-              // TODO: Implementar navegação para página do carrinho
-              console.log('Carrinho clicado')
-            }}
-          >
-            <Badge badgeContent={carrinho.quantidadeTotal} color="error">
-              <ShoppingCart sx={{ fontSize: 28, color: 'white' }} />
-            </Badge>
-            <Box sx={{ display: 'flex', flexDirection: 'column', ml: 1 }}>
-              <Typography
-                variant="caption"
-                sx={{
-                  color: 'white',
-                  fontSize: '0.7rem',
-                  lineHeight: 1,
-                  opacity: 0.9,
-                }}
-              >
-                {carrinho.quantidadeTotal} {carrinho.quantidadeTotal === 1 ? 'item' : 'itens'}
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: 'white',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  lineHeight: 1.2,
-                }}
-              >
-                R$ {carrinho.valorTotal.toFixed(2).replace('.', ',')}
-              </Typography>
+          <Tooltip title="Carrinho" arrow>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                mr: 2,
+                padding: '6px 12px',
+                borderRadius: 2,
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                },
+              }}
+              onClick={() => {
+                // TODO: Implementar navegação para página do carrinho
+                console.log('Carrinho clicado')
+              }}
+            >
+              <Badge badgeContent={carrinho.quantidadeTotal} color="error">
+                <ShoppingCart sx={{ fontSize: 28, color: 'white' }} />
+              </Badge>
+              <Box sx={{ display: 'flex', flexDirection: 'column', ml: 1 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: 'white',
+                    fontSize: '0.7rem',
+                    lineHeight: 1,
+                    opacity: 0.9,
+                  }}
+                >
+                  {carrinho.quantidadeTotal} {carrinho.quantidadeTotal === 1 ? 'item' : 'itens'}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: 'white',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  R$ {carrinho.valorTotal.toFixed(2).replace('.', ',')}
+                </Typography>
+              </Box>
             </Box>
-          </Box>
+          </Tooltip>
 
           {/* Botão de usuário */}
-          <IconButton
-            onClick={handleLogout}
-            sx={{
-              color: 'white',
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              },
-            }}
-          >
-            <AccountCircle sx={{ fontSize: 32 }} />
-          </IconButton>
+          <Tooltip title="Perfil" arrow>
+            <IconButton
+              onClick={handleLogout}
+              sx={{
+                color: 'white',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                },
+              }}
+            >
+              <AccountCircle sx={{ fontSize: 32 }} />
+            </IconButton>
+          </Tooltip>
         </Toolbar>
       </AppBar>
 
-      <Container maxWidth="lg" sx={{ mt: 3 }}>
+      <Container maxWidth="xl" sx={{ mt: 3, px: { xs: 2, sm: 3, md: 4 } }}>
         {/* Seção Destaques */}
         <Box sx={{ mb: 4 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -447,20 +548,68 @@ const Loja = () => {
               </Typography>
             </Paper>
           ) : (
-            <Box sx={{ position: 'relative' }}>
+            <Box 
+              sx={{ 
+                position: 'relative',
+                overflow: 'hidden',
+                borderRadius: 3,
+                userSelect: 'none',
+                touchAction: 'pan-y',
+              }}
+              onTouchStart={handleSwipeStart}
+              onTouchMove={handleSwipeMove}
+              onTouchEnd={handleSwipeEnd}
+              onMouseDown={handleSwipeStart}
+              onMouseMove={handleSwipeMove}
+              onMouseUp={handleSwipeEnd}
+              onMouseLeave={handleSwipeEnd}
+            >
               {produtosDestaque.length > 0 && (
                 <>
-                  <Card
+                  <Box
                     sx={{
-                      display: 'flex',
-                      flexDirection: { xs: 'column', md: 'row' },
-                      borderRadius: 3,
-                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                      position: 'relative',
+                      width: '100%',
                       overflow: 'hidden',
-                      height: { xs: 'auto', md: 400 },
-                      backgroundColor: 'white',
                     }}
                   >
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        transform: produtosDestaque.length > 0 
+                          ? `translateX(calc(-${destaqueAtual * (100 / produtosDestaque.length)}% + ${swipeOffset}px))`
+                          : 'translateX(0)',
+                        transition: swipeStart === null ? 'transform 0.3s ease-in-out' : 'none',
+                        width: produtosDestaque.length > 0 ? `${produtosDestaque.length * 100}%` : '100%',
+                      }}
+                    >
+                      {produtosDestaque.length > 0 && produtosDestaque.map((produto, index) => {
+                        // Calcular a largura base do container visível
+                        const containerWidth = 100 / produtosDestaque.length
+                        return (
+                          <Box
+                            key={index}
+                            sx={{
+                              width: `${containerWidth}%`,
+                              minWidth: `${containerWidth}%`,
+                              flexShrink: 0,
+                              flex: '0 0 auto',
+                            }}
+                          >
+                            <Card
+                              sx={{
+                                display: 'flex',
+                                flexDirection: { xs: 'column', md: 'row' },
+                                borderRadius: 3,
+                                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                                overflow: 'visible',
+                                height: { xs: 'auto', md: 400 },
+                                backgroundColor: 'white',
+                                position: 'relative',
+                                width: '100%',
+                                margin: '0 auto',
+                              }}
+                            >
                     {/* Imagem do produto */}
                     <Box
                       sx={{
@@ -474,79 +623,104 @@ const Loja = () => {
                         overflow: 'hidden',
                       }}
                     >
-                      {produtosDestaque[destaqueAtual]?.imagem_principal ? (
-                        <Box
-                          component="img"
-                          src={produtosDestaque[destaqueAtual].imagem_principal}
-                          alt={produtosDestaque[destaqueAtual].nome}
-                          sx={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'contain',
-                            objectPosition: 'center',
-                            padding: 2,
-                          }}
-                        />
-                      ) : (
-                        <Box
-                          sx={{
-                            width: '100%',
-                            height: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <ShoppingCart sx={{ fontSize: 80, color: '#ccc' }} />
-                        </Box>
-                      )}
-                      {produtosDestaque[destaqueAtual]?.destaque && (
-                        <Chip
-                          label={`${produtosDestaque[destaqueAtual].destaque.desconto_percentual}% OFF`}
-                          sx={{
-                            position: 'absolute',
-                            top: 16,
-                            right: 16,
-                            backgroundColor: '#F7401B',
-                            color: 'white',
-                            fontWeight: 700,
-                            fontSize: '1rem',
-                            padding: '8px 16px',
-                            height: 'auto',
-                            zIndex: 2,
-                          }}
-                        />
-                      )}
-                    </Box>
+                        {produto?.imagem_principal ? (
+                          <Box
+                            component="img"
+                            src={produto.imagem_principal}
+                            alt={produto.nome}
+                            sx={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'contain',
+                              objectPosition: 'center',
+                              padding: 2,
+                            }}
+                          />
+                        ) : (
+                          <Box
+                            sx={{
+                              width: '100%',
+                              height: '100%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <ShoppingCart sx={{ fontSize: 80, color: '#ccc' }} />
+                          </Box>
+                        )}
+                        {produto?.destaque && (
+                          <Chip
+                            label={`${produto.destaque.desconto_percentual}% OFF`}
+                            sx={{
+                              position: 'absolute',
+                              top: 16,
+                              right: 16,
+                              backgroundColor: '#F7401B',
+                              color: 'white',
+                              fontWeight: 700,
+                              fontSize: '1rem',
+                              padding: '8px 16px',
+                              height: 'auto',
+                              zIndex: 2,
+                            }}
+                          />
+                        )}
+                      </Box>
 
-                    {/* Informações do produto */}
-                    <Box
-                      sx={{
-                        width: { xs: '100%', md: '45%' },
-                        padding: 4,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <Box>
-                        <Typography variant="h4" component="h3" sx={{ fontWeight: 700, color: '#213547', mb: 2 }}>
-                          {produtosDestaque[destaqueAtual]?.nome}
-                        </Typography>
-                        <Typography variant="body1" color="text.secondary" sx={{ mb: 3, lineHeight: 1.6 }}>
-                          {produtosDestaque[destaqueAtual]?.descricao}
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-                          <Star sx={{ fontSize: 24, color: '#FFC107' }} />
-                          <Typography variant="h6" sx={{ color: '#666' }}>
-                            {produtosDestaque[destaqueAtual]?.media_avaliacao && !isNaN(parseFloat(produtosDestaque[destaqueAtual].media_avaliacao)) 
-                              ? parseFloat(produtosDestaque[destaqueAtual].media_avaliacao).toFixed(1) 
-                              : '0.0'}
+                      {/* Informações do produto */}
+                      <Box
+                        sx={{
+                          width: { xs: '100%', md: '45%' },
+                          padding: 4,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <Box>
+                          <Typography variant="h4" component="h3" sx={{ fontWeight: 700, color: '#213547', mb: 2 }}>
+                            {produto?.nome}
                           </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 2, mb: 3 }}>
-                          {produtosDestaque[destaqueAtual]?.destaque ? (
-                            <>
+                          <Typography variant="body1" color="text.secondary" sx={{ mb: 3, lineHeight: 1.6 }}>
+                            {produto?.descricao}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                            <Star sx={{ fontSize: 24, color: '#FFC107' }} />
+                            <Typography variant="h6" sx={{ color: '#666' }}>
+                              {produto?.media_avaliacao && !isNaN(parseFloat(produto.media_avaliacao)) 
+                                ? parseFloat(produto.media_avaliacao).toFixed(1) 
+                                : '0.0'}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 2, mb: 3 }}>
+                            {produto?.destaque ? (
+                              <>
+                                <Typography
+                                  variant="h3"
+                                  sx={{
+                                    color: '#F7401B',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  R$ {produto.destaque.valor_com_desconto && !isNaN(parseFloat(produto.destaque.valor_com_desconto)) 
+                                    ? parseFloat(produto.destaque.valor_com_desconto).toFixed(2).replace('.', ',') 
+                                    : '0,00'}
+                                </Typography>
+                                <Typography
+                                  variant="h5"
+                                  sx={{
+                                    color: '#999',
+                                    textDecoration: 'line-through',
+                                    fontWeight: 400,
+                                  }}
+                                >
+                                  R$ {produto.valor && !isNaN(parseFloat(produto.valor)) 
+                                    ? parseFloat(produto.valor).toFixed(2).replace('.', ',') 
+                                    : '0,00'}
+                                </Typography>
+                              </>
+                            ) : (
                               <Typography
                                 variant="h3"
                                 sx={{
@@ -554,95 +728,122 @@ const Loja = () => {
                                   fontWeight: 700,
                                 }}
                               >
-                                R$ {produtosDestaque[destaqueAtual].destaque.valor_com_desconto && !isNaN(parseFloat(produtosDestaque[destaqueAtual].destaque.valor_com_desconto)) 
-                                  ? parseFloat(produtosDestaque[destaqueAtual].destaque.valor_com_desconto).toFixed(2).replace('.', ',') 
+                                R$ {produto?.valor && !isNaN(parseFloat(produto.valor)) 
+                                  ? parseFloat(produto.valor).toFixed(2).replace('.', ',') 
                                   : '0,00'}
                               </Typography>
-                              <Typography
-                                variant="h5"
-                                sx={{
-                                  color: '#999',
-                                  textDecoration: 'line-through',
-                                  fontWeight: 400,
-                                }}
-                              >
-                                R$ {produtosDestaque[destaqueAtual].valor && !isNaN(parseFloat(produtosDestaque[destaqueAtual].valor)) 
-                                  ? parseFloat(produtosDestaque[destaqueAtual].valor).toFixed(2).replace('.', ',') 
-                                  : '0,00'}
-                              </Typography>
-                            </>
-                          ) : (
-                            <Typography
-                              variant="h3"
-                              sx={{
-                                color: '#F7401B',
-                                fontWeight: 700,
-                              }}
-                            >
-                              R$ {produtosDestaque[destaqueAtual]?.valor && !isNaN(parseFloat(produtosDestaque[destaqueAtual].valor)) 
-                                ? parseFloat(produtosDestaque[destaqueAtual].valor).toFixed(2).replace('.', ',') 
-                                : '0,00'}
-                            </Typography>
-                          )}
+                            )}
+                          </Box>
                         </Box>
+                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                        <Tooltip 
+                          title={isFavoritado(produto.idproduto) ? "Remover dos favoritos" : "Adicionar aos favoritos"} 
+                          arrow
+                        >
+                          <IconButton
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleToggleFavorito(produto)
+                            }}
+                            sx={{
+                              backgroundColor: isFavoritado(produto.idproduto) ? '#F7401B' : 'rgba(0, 0, 0, 0.1)',
+                              color: 'white',
+                              width: 48,
+                              height: 48,
+                              '&:hover': {
+                                backgroundColor: isFavoritado(produto.idproduto) ? '#FF6B35' : 'rgba(0, 0, 0, 0.2)',
+                                transform: 'scale(1.05)',
+                              },
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            {isFavoritado(produto.idproduto) ? (
+                              <Favorite sx={{ fontSize: 24 }} />
+                            ) : (
+                              <FavoriteBorder sx={{ fontSize: 24 }} />
+                            )}
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Adicionar ao Carrinho" arrow>
+                          <Button
+                            fullWidth
+                            variant="contained"
+                            size="large"
+                            startIcon={<ShoppingCart />}
+                            sx={{
+                              backgroundColor: '#F7401B',
+                              padding: '14px 28px',
+                              fontSize: '1.1rem',
+                              fontWeight: 600,
+                              flex: 1,
+                              '&:hover': {
+                                backgroundColor: '#FF6B35',
+                              },
+                            }}
+                          >
+                            Adicionar ao Carrinho
+                          </Button>
+                        </Tooltip>
                       </Box>
-                      <Button
-                        fullWidth
-                        variant="contained"
-                        size="large"
-                        startIcon={<ShoppingCart />}
-                        sx={{
-                          backgroundColor: '#F7401B',
-                          padding: '14px 28px',
-                          fontSize: '1.1rem',
-                          fontWeight: 600,
-                          '&:hover': {
-                            backgroundColor: '#FF6B35',
-                          },
-                        }}
-                      >
-                        Adicionar ao Carrinho
-                      </Button>
+                      </Box>
+                    </Card>
+                          </Box>
+                        )
+                      })}
                     </Box>
-                  </Card>
+                  </Box>
 
                   {/* Navegação entre destaques */}
                   {produtosDestaque.length > 1 && (
                     <>
-                      <IconButton
-                        onClick={handleDestaqueAnterior}
-                        sx={{
-                          position: 'absolute',
-                          left: 16,
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                          color: '#F7401B',
-                          '&:hover': {
-                            backgroundColor: 'white',
-                          },
-                          zIndex: 1,
-                        }}
-                      >
-                        <ArrowBackIos />
-                      </IconButton>
-                      <IconButton
-                        onClick={handleProximoDestaque}
-                        sx={{
-                          position: 'absolute',
-                          right: 16,
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                          color: '#F7401B',
-                          '&:hover': {
-                            backgroundColor: 'white',
-                          },
-                          zIndex: 1,
-                        }}
-                      >
-                        <ArrowForwardIos />
-                      </IconButton>
+                      <Tooltip title="Destaque anterior" arrow>
+                        <IconButton
+                          onClick={handleDestaqueAnterior}
+                          sx={{
+                            position: 'absolute',
+                            left: { xs: 8, md: 16 },
+                            top: 0,
+                            bottom: 0,
+                            margin: 'auto',
+                            height: 'fit-content',
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            color: 'white',
+                            width: { xs: 36, md: 40 },
+                            minHeight: { xs: 36, md: 40 },
+                            '&:hover': {
+                              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            },
+                            zIndex: 10,
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+                          }}
+                        >
+                          <ArrowBackIos sx={{ color: 'white', fontSize: { xs: 18, md: 20 } }} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Próximo destaque" arrow>
+                        <IconButton
+                          onClick={handleProximoDestaque}
+                          sx={{
+                            position: 'absolute',
+                            right: { xs: 8, md: 16 },
+                            top: 0,
+                            bottom: 0,
+                            margin: 'auto',
+                            height: 'fit-content',
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            color: 'white',
+                            width: { xs: 36, md: 40 },
+                            minHeight: { xs: 36, md: 40 },
+                            '&:hover': {
+                              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            },
+                            zIndex: 10,
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+                          }}
+                        >
+                          <ArrowForwardIos sx={{ color: 'white', fontSize: { xs: 18, md: 20 } }} />
+                        </IconButton>
+                      </Tooltip>
                       
                       {/* Indicadores de destaque */}
                       <Box
@@ -680,7 +881,16 @@ const Loja = () => {
         </Box>
 
         {/* Seção de Categorias */}
-        <Box sx={{ mb: 4 }}>
+        <Paper
+          elevation={2}
+          sx={{
+            mb: 4,
+            p: { xs: 2, sm: 3, md: 4 },
+            borderRadius: 3,
+            backgroundColor: 'white',
+            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
+          }}
+        >
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <Category sx={{ fontSize: 30, color: '#F7401B', mr: 1 }} />
             <Typography variant="h5" component="h2" sx={{ fontWeight: 600, color: '#213547' }}>
@@ -793,10 +1003,19 @@ const Loja = () => {
               ))}
             </Box>
           )}
-          </Box>
+        </Paper>
 
         {/* Seção de Produtos */}
-        <Box sx={{ mb: 4 }}>
+        <Paper
+          elevation={2}
+          sx={{
+            mb: 4,
+            p: { xs: 2, sm: 3, md: 4 },
+            borderRadius: 3,
+            backgroundColor: 'white',
+            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
+          }}
+        >
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <ShoppingCart sx={{ fontSize: 30, color: '#F7401B', mr: 1 }} />
             <Typography variant="h5" component="h2" sx={{ fontWeight: 600, color: '#213547' }}>
@@ -1018,11 +1237,62 @@ const Loja = () => {
                       )}
                     </Box>
                   </CardContent>
+                  
+                  {/* Botões de ação */}
+                  <CardActions sx={{ p: 2, pt: 1, gap: 1 }}>
+                    <Tooltip title={isFavoritado(produto.idproduto) ? "Remover dos favoritos" : "Adicionar aos favoritos"} arrow>
+                      <IconButton
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleToggleFavorito(produto)
+                        }}
+                        size="small"
+                        sx={{
+                          backgroundColor: isFavoritado(produto.idproduto) ? '#F7401B' : 'rgba(0, 0, 0, 0.05)',
+                          color: 'white',
+                          '&:hover': {
+                            backgroundColor: isFavoritado(produto.idproduto) ? '#FF6B35' : 'rgba(0, 0, 0, 0.2)',
+                          },
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        {isFavoritado(produto.idproduto) ? (
+                          <Favorite sx={{ fontSize: 20, color: 'white' }} />
+                        ) : (
+                          <FavoriteBorder sx={{ fontSize: 20, color: 'white' }} />
+                        )}
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Adicionar ao Carrinho" arrow>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<ShoppingCart />}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          // TODO: Implementar adicionar ao carrinho
+                          console.log('Adicionar ao carrinho:', produto)
+                        }}
+                        sx={{
+                          backgroundColor: '#F7401B',
+                          color: 'white',
+                          flex: 1,
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          '&:hover': {
+                            backgroundColor: '#FF6B35',
+                          },
+                        }}
+                      >
+                        Carrinho
+                      </Button>
+                    </Tooltip>
+                  </CardActions>
                 </Card>
               ))}
             </Box>
           )}
-        </Box>
+        </Paper>
       </Container>
     </Box>
   )

@@ -111,3 +111,4 @@ ORDER BY data_admin DESC;
 - **Admins existentes**: `data_admin` será preenchido com a data atual
 - **Trigger automático**: `data_admin` é atualizado automaticamente quando `admin` muda
 
+

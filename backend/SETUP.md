@@ -103,3 +103,4 @@ curl -X POST http://localhost:8000/api/auth/login \
 - As tabelas devem ser criadas pelo script SQL do PostgreSQL
 - Execute o script de inicialização do banco de dados
 
+

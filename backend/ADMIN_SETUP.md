@@ -96,3 +96,4 @@ O endpoint `/api/auth/admin/login` verifica:
 UPDATE usuario SET admin = 0 WHERE email = 'seu@email.com';
 ```
 
+

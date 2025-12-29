@@ -46,3 +46,4 @@ def obter_historico_por_usuario(usuario_id):
         usuario_idusuario=usuario_id
     ).order_by('-data_acao')
 
+

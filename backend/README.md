@@ -104,3 +104,4 @@ Para produção, configure:
 - `ALLOWED_HOSTS` específicos
 - Use um servidor WSGI como Gunicorn ou uWSGI
 
+
