@@ -36,6 +36,8 @@ const Loja = () => {
   const [swipeOffset, setSwipeOffset] = useState(0)
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [produtos, setProdutos] = useState([])
+  const [produtosFiltrados, setProdutosFiltrados] = useState([])
+  const [termoPesquisa, setTermoPesquisa] = useState('')
   const [loadingProdutos, setLoadingProdutos] = useState(false)
   const [carrinho, setCarrinho] = useState({
     itens: [],
@@ -45,6 +47,7 @@ const Loja = () => {
   const [categorias, setCategorias] = useState([])
   const [loadingCategorias, setLoadingCategorias] = useState(false)
   const [favoritos, setFavoritos] = useState([])
+  const [mostrarSugestoes, setMostrarSugestoes] = useState(false)
 
   // Mapeamento de ícones e cores para categorias baseado no nome
   const getCategoriaIcone = (nome) => {
@@ -201,16 +204,39 @@ const Loja = () => {
       
       if (produtosData && produtosData.length > 0) {
         setProdutos(produtosData)
+        setProdutosFiltrados(produtosData)
       } else {
         setProdutos([])
+        setProdutosFiltrados([])
       }
     } catch (err) {
       console.error('Erro ao buscar produtos:', err)
       setProdutos([])
+      setProdutosFiltrados([])
     } finally {
       setLoadingProdutos(false)
     }
   }
+
+  // Filtrar produtos baseado no termo de pesquisa
+  useEffect(() => {
+    if (!termoPesquisa.trim()) {
+      setProdutosFiltrados(produtos)
+      setMostrarSugestoes(false)
+    } else {
+      const termo = termoPesquisa.toLowerCase().trim()
+      const filtrados = produtos.filter((produto) => {
+        const nome = produto.nome?.toLowerCase() || ''
+        const descricao = produto.descricao?.toLowerCase() || ''
+        return nome.includes(termo) || descricao.includes(termo)
+      })
+      setProdutosFiltrados(filtrados)
+      setMostrarSugestoes(filtrados.length > 0)
+    }
+  }, [termoPesquisa, produtos])
+
+  // Produtos para sugestões (limitado a 5)
+  const produtosSugestoes = produtosFiltrados.slice(0, 5)
 
   // Buscar categorias do backend
   const fetchCategorias = async () => {
@@ -388,6 +414,17 @@ const Loja = () => {
             </Box>
             <InputBase
               placeholder="Pesquisar produtos..."
+              value={termoPesquisa}
+              onChange={(e) => setTermoPesquisa(e.target.value)}
+              onFocus={() => {
+                if (termoPesquisa.trim() && produtosFiltrados.length > 0) {
+                  setMostrarSugestoes(true)
+                }
+              }}
+              onBlur={() => {
+                // Delay para permitir cliques nos itens
+                setTimeout(() => setMostrarSugestoes(false), 200)
+              }}
               sx={{
                 color: 'white',
                 width: '100%',
@@ -401,6 +438,112 @@ const Loja = () => {
                 },
               }}
             />
+            
+            {/* Dropdown de sugestões */}
+            {mostrarSugestoes && produtosSugestoes.length > 0 && (
+              <Paper
+                elevation={8}
+                sx={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  mt: 1,
+                  maxHeight: 400,
+                  overflowY: 'auto',
+                  zIndex: 1300,
+                  borderRadius: 2,
+                  backgroundColor: 'white',
+                }}
+              >
+                {produtosSugestoes.map((produto) => (
+                  <Box
+                    key={produto.idproduto}
+                    onClick={() => {
+                      setTermoPesquisa(produto.nome)
+                      setMostrarSugestoes(false)
+                      // Scroll para o produto na lista
+                      const produtoElement = document.querySelector(`[data-produto-id="${produto.idproduto}"]`)
+                      if (produtoElement) {
+                        produtoElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                      }
+                    }}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2,
+                      p: 2,
+                      cursor: 'pointer',
+                      borderBottom: '1px solid #f0f0f0',
+                      '&:hover': {
+                        backgroundColor: '#f5f5f5',
+                      },
+                      '&:last-child': {
+                        borderBottom: 'none',
+                      },
+                    }}
+                  >
+                    {produto.imagem_principal ? (
+                      <Box
+                        component="img"
+                        src={produto.imagem_principal}
+                        alt={produto.nome}
+                        sx={{
+                          width: 60,
+                          height: 60,
+                          objectFit: 'contain',
+                          backgroundColor: '#f5f5f5',
+                          borderRadius: 1,
+                          padding: 0.5,
+                        }}
+                      />
+                    ) : (
+                      <Box
+                        sx={{
+                          width: 60,
+                          height: 60,
+                          backgroundColor: '#f5f5f5',
+                          borderRadius: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <ShoppingCart sx={{ fontSize: 30, color: '#ccc' }} />
+                      </Box>
+                    )}
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          fontWeight: 600,
+                          color: '#213547',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {produto.nome}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: '#F7401B',
+                          fontWeight: 600,
+                          mt: 0.5,
+                        }}
+                      >
+                        R$ {produto.destaque?.valor_com_desconto && !isNaN(parseFloat(produto.destaque.valor_com_desconto))
+                          ? parseFloat(produto.destaque.valor_com_desconto).toFixed(2).replace('.', ',')
+                          : produto.valor && !isNaN(parseFloat(produto.valor))
+                          ? parseFloat(produto.valor).toFixed(2).replace('.', ',')
+                          : '0,00'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Paper>
+            )}
           </Box>
 
           {/* Favoritos */}
@@ -1043,7 +1186,7 @@ const Loja = () => {
                 Carregando produtos...
               </Typography>
             </Paper>
-          ) : produtos.length === 0 ? (
+          ) : produtosFiltrados.length === 0 && !loadingProdutos ? (
             <Paper
               elevation={2}
               sx={{
@@ -1059,10 +1202,12 @@ const Loja = () => {
               }}
             >
               <Typography variant="h6" sx={{ mb: 1, color: '#666', fontWeight: 500 }}>
-                Nenhum produto disponível no momento
+                {termoPesquisa.trim() ? 'Nenhum produto encontrado' : 'Nenhum produto disponível no momento'}
               </Typography>
               <Typography variant="body2" sx={{ color: '#999' }}>
-                Os produtos aparecerão aqui quando forem cadastrados
+                {termoPesquisa.trim() 
+                  ? `Não encontramos produtos com "${termoPesquisa}"` 
+                  : 'Os produtos aparecerão aqui quando forem cadastrados'}
               </Typography>
             </Paper>
           ) : (
@@ -1090,9 +1235,10 @@ const Loja = () => {
                 },
               }}
             >
-              {produtos.map((produto) => (
+              {produtosFiltrados.map((produto) => (
                 <Card
                   key={produto.idproduto}
+                  data-produto-id={produto.idproduto}
                   sx={{
                     minWidth: 280,
                     maxWidth: 280,

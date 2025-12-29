@@ -221,3 +221,4 @@ DO $$
 BEGIN
     RAISE NOTICE 'Script executado sem conflitos de tabelas!';
 END $$;
+
